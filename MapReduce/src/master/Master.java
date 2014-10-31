@@ -10,4 +10,6 @@ public class Master {
 
 	}
 
+	// TODO config loader
+
 }
