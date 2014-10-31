@@ -9,6 +9,18 @@ public class Master {
 		// TODO Auto-generated method stub
 
 	}
+	
+	public void startMapReduce(){
+		
+	}
+	
+	public void stopMapReduce(int pid){
+		
+	}
+	
+	public void getStatus(int pid){
+		
+	}
 
 	// TODO config loader
 

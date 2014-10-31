@@ -1,5 +1,5 @@
 package messages;
 
-public class Command {
-
+public interface Command extends Message {
+	
 }

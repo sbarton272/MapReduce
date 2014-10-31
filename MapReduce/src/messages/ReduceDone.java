@@ -1,5 +1,5 @@
 package messages;
 
-public class ReduceDone {
+public class ReduceDone implements Done{
 
 }

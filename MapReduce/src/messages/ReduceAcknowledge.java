@@ -1,5 +1,5 @@
 package messages;
 
-public class ReduceAcknowledge {
+public class ReduceAcknowledge implements Acknowledge{
 
 }
