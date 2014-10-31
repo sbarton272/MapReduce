@@ -1,5 +1,5 @@
 package messages;
 
-public class MapCommand {
+public class MapCommand implements Command{
 
 }

@@ -9,5 +9,21 @@ public class Participant {
 		// TODO Auto-generated method stub
 
 	}
+	
+	public void runMap(){
+		
+	}
+	
+	public void stopMap(int pid){
+		
+	}
+	
+	public void runReduce(){
+		
+	}
+	
+	public void stopReduce(int pid){
+		
+	}
 
 }

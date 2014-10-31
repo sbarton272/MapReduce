@@ -1,5 +1,5 @@
 package messages;
 
-public class MapDone {
+public class MapDone implements Done{
 
 }

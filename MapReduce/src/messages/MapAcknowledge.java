@@ -1,5 +1,5 @@
 package messages;
 
-public class MapAcknowledge {
+public class MapAcknowledge implements Acknowledge{
 
 }

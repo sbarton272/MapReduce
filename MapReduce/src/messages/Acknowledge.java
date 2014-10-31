@@ -1,5 +1,5 @@
 package messages;
 
-public class Acknowledge {
+public interface Acknowledge extends Message{
 
 }
