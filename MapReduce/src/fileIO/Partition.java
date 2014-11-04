@@ -20,8 +20,9 @@ public class Partition implements Serializable {
 
 	/**
 	 *  Create empty partition
+	 * @param optimalPartitionSize
 	 */
-	public Partition() {
+	public Partition(int optimalPartitionSize) {
 		filePath = File.separator + TMP_DIR + File.separator + Integer.toString(this.hashCode());
 
 		// Make tmp directory if not present
@@ -45,7 +46,7 @@ public class Partition implements Serializable {
 	}
 
 	public MRKeyVal readKeyVal() {
-		return null;
+		return null; // TODO return null if at end
 	}
 
 	public void writeline() {
@@ -67,6 +68,21 @@ public class Partition implements Serializable {
 	public static Partition newFromList(List<MRKeyVal> values) {
 		// TODO Auto-generated method stub
 		return null;
+	}
+
+	public void writeKeyVal(MRKeyVal mrKeyVal) {
+		// TODO Auto-generated method stub
+
+	}
+
+	public boolean isFull() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	public int getOptimalSize() {
+		// TODO Auto-generated method stub
+		return 0;
 	}
 
 }

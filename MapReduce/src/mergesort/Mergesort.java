@@ -1,5 +1,6 @@
 package mergesort;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -17,16 +18,22 @@ public class Mergesort {
 
 		// Sort individual partitions
 		// TODO can have mappers complete this step
-		List<Partition> newPartitions = new List<Partition>();
+		List<Partition> newPartitions = new ArrayList<Partition>();
 		for (Partition partition : unsortedPartitions) {
+
 			newPartitions.add(sortPartition(partition));
+
+			// Remove old partition
+			partition.delete();
 		}
 
 		// Merge partitions into new partitions
 		List<Partition> sortedPartitions = mergePartitions(newPartitions);
 
 		// Remove all old individually sorted partitions
-		// TODO
+		for (Partition partition : newPartitions) {
+			partition.delete();
+		}
 
 		return (Partition[]) sortedPartitions.toArray();
 	}
@@ -37,7 +44,7 @@ public class Mergesort {
 
 		// Read whole partition into list of lists
 		// This is the first split
-		List<MRKeyVal> values = new List<MRKeyVal>();
+		List<MRKeyVal> values = new ArrayList<MRKeyVal>();
 
 		partition.open();
 		MRKeyVal value = partition.readKeyVal();
@@ -47,24 +54,27 @@ public class Mergesort {
 		}
 		partition.close();
 
-		// Remove old partition
-		partition.delete();
-
 		Collections.sort(values); // TODO ordering?
 		return Partition.newFromList(values);
 	}
 
+	/**
+	 * Merge all partitions together at once
+	 * Merge into a new partition until full and then create the next partition
+	 */
 	private static List<Partition> mergePartitions(List<Partition> partitions) {
-		// Merge all partitions together at once
-		// Merge into a new partition until full and then create the next partition
 
-		List<Partition> sortedPartitions = new List<Partition>();
-		Partition curPartiton = new Partition();
+
+		List<Partition> sortedPartitions = new ArrayList<Partition>();
+
+		// Make new partitions the optimal size so know how much to fill each
+		int newPartitionSize = partitions.get(0).getOptimalSize();
+		Partition curPartition = new Partition(newPartitionSize);
 
 		// Continue merging until all partitions are merged
 		MRKeyVal[] firstElems = new MRKeyVal[partitions.size()];
 		// Populate first element array
-		for(int i; i < partitions.size(); i++) {
+		for(int i = 0; i < partitions.size(); i++) {
 			firstElems[i] = partitions.get(i).readKeyVal();
 		}
 
@@ -79,7 +89,18 @@ public class Mergesort {
 				break;
 			}
 
-			//
+			// Retrieved max elem from partition
+			// Write value to curPartition
+			curPartition.writeKeyVal(firstElems[maxIndex]);
+
+			// If curPartition full, store and create a new partition
+			if (curPartition.isFull()) {
+				sortedPartitions.add(curPartition);
+				curPartition = new Partition(newPartitionSize);
+			}
+
+			// Update the firstElems list
+			firstElems[maxIndex] = partitions.get(maxIndex).readKeyVal();
 		}
 
 		return sortedPartitions;
