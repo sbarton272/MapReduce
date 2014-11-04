@@ -1,5 +1,6 @@
 package mergesort;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -46,16 +47,19 @@ public class Mergesort {
 		// This is the first split
 		List<MRKeyVal> values = new ArrayList<MRKeyVal>();
 
-		partition.open();
-		MRKeyVal value = partition.readKeyVal();
-		while(value != null) {
-			values.add(value);
-			value = partition.readKeyVal();
+		try {
+
+			// Read in partition values
+			partition.openRead();
+			values = partition.getContents();
+			partition.closeRead();
+
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
-		partition.close();
 
 		Collections.sort(values); // TODO ordering?
-		return Partition.newFromList(values);
+		return Partition.newFromList(values, partition.getMaxSize());
 	}
 
 	/**
@@ -63,19 +67,35 @@ public class Mergesort {
 	 * Merge into a new partition until full and then create the next partition
 	 */
 	private static List<Partition> mergePartitions(List<Partition> partitions) {
-
+		// TODO clean-up file IO try,catches - takes away from logic
 
 		List<Partition> sortedPartitions = new ArrayList<Partition>();
 
 		// Make new partitions the optimal size so know how much to fill each
-		int newPartitionSize = partitions.get(0).getOptimalSize();
+		int newPartitionSize = partitions.get(0).getMaxSize();
 		Partition curPartition = new Partition(newPartitionSize);
 
 		// Continue merging until all partitions are merged
 		MRKeyVal[] firstElems = new MRKeyVal[partitions.size()];
+
 		// Populate first element array
 		for(int i = 0; i < partitions.size(); i++) {
-			firstElems[i] = partitions.get(i).readKeyVal();
+			try {
+
+				// Open for reading, close when all done
+				partitions.get(i).openRead();
+				firstElems[i] = partitions.get(i).readKeyVal();
+
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+
+		// Open current partition
+		try {
+			curPartition.openWrite();
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 
 		// Iterate through all partitions and fill new partitions until all old partitions are empty
@@ -91,16 +111,43 @@ public class Mergesort {
 
 			// Retrieved max elem from partition
 			// Write value to curPartition
-			curPartition.writeKeyVal(firstElems[maxIndex]);
+			try {
+				curPartition.writeKeyVal(firstElems[maxIndex]);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 
 			// If curPartition full, store and create a new partition
 			if (curPartition.isFull()) {
 				sortedPartitions.add(curPartition);
+
+				// Close current partition for writing
+				try {
+					curPartition.closeWrite();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+
+				// Create new parition and open for writing
 				curPartition = new Partition(newPartitionSize);
+				try {
+					curPartition.openWrite();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 			}
 
 			// Update the firstElems list
-			firstElems[maxIndex] = partitions.get(maxIndex).readKeyVal();
+			try {
+				firstElems[maxIndex] = partitions.get(maxIndex).readKeyVal();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+
+		// Close old partitions because done reading
+		for(int i = 0; i < partitions.size(); i++) {
+			partitions.get(i).closeRead();
 		}
 
 		return sortedPartitions;
