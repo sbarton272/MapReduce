@@ -7,6 +7,7 @@ import java.util.List;
 
 import mapreduce.MRKeyVal;
 import fileIO.Partition;
+import fileIO.PartitionWriter;
 
 /**
  * Take in partitions and return new sorted partitions. Note that this removes the old partitions.
@@ -74,18 +75,17 @@ public class MergeSort {
 	 */
 	private static List<Partition> mergePartitions(List<Partition> partitions, int newPartitionSize) {
 
-		List<Partition> result;
+		List<Partition> sortedPartitions = new ArrayList<Partition>();
 		try {
-			List<Partition> sortedPartitions = new ArrayList<Partition>();
-
-			// Make new partitions the optimal size so know how much to fill each
-			Partition curPartition = new Partition(newPartitionSize);
 
 			// Continue merging until all partitions are merged
 			MRKeyVal[] firstElems = populateFirstElems(partitions);
 
-			// Open current partition
-			curPartition.openWrite();
+			// Make new partitions the optimal size so know how much to fill each
+			PartitionWriter partitionWriter = new PartitionWriter(newPartitionSize);
+
+			// Open partition writer, this will write partitions until full and then fill a new one
+			partitionWriter.open();
 
 			// Iterate through all partitions and fill new partitions until all old partitions are empty
 			int minIndex;
@@ -98,41 +98,26 @@ public class MergeSort {
 					break;
 				}
 
-				// If curPartition full, store and create a new partition
-				if (curPartition.isFull()) {
-					sortedPartitions.add(curPartition);
-
-					// Close current partition for writing
-					curPartition.closeWrite();
-
-					// Create new partition and open for writing
-					curPartition = new Partition(newPartitionSize);
-					curPartition.openWrite();
-				}
-
 				// Retrieved max elem from partition
-				// Write value to curPartition
-				curPartition.writeKeyVal(firstElems[minIndex]);
+				// Write value to partition
+				partitionWriter.writeKeyVal(firstElems[minIndex]);
 
 				// Update the firstElems list
 				firstElems[minIndex] = partitions.get(minIndex).readKeyVal();
 			}
 
-			sortedPartitions.add(curPartition);
-
-			// Finally close last partition
-			curPartition.closeWrite();
+			// Finally close last partition and get all created partitions
+			sortedPartitions = partitionWriter.close();
 
 			// Close old partitions because done reading
 			for(int i = 0; i < partitions.size(); i++) {
 				partitions.get(i).closeRead();
 			}
 
-			result = sortedPartitions;
 		} catch (IOException e) {
-			result = null;
+			sortedPartitions = null;
 		}
-		return result;
+		return sortedPartitions;
 	}
 
 	private static MRKeyVal[] populateFirstElems(List<Partition> partitions) throws IOException {

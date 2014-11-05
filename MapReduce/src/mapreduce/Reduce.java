@@ -2,6 +2,6 @@ package mapreduce;
 
 public interface Reduce {
 
-	public MRKeyVal[] reduce(MRKeyVal[] priorVK, MRKeyVal curKV);
+	public MRKeyVal[] reduce(MRKeyVal[] priorKV, MRKeyVal curKV);
 
 }

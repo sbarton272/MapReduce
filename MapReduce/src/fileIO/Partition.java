@@ -21,6 +21,7 @@ public class Partition implements Serializable {
 	// TODO implements input stream?
 	// TODO load file over
 	// TODO delete state?
+	// TODO may be able to implement without serializable object stuff
 
 	private static final long serialVersionUID = 2184080295517094612L;
 	private static final String TMP_DIR = "tmp";
@@ -136,7 +137,7 @@ public class Partition implements Serializable {
 			contents.add(mrKeyVal);
 			size++;
 		} else {
-			throw(new IOException("Open file for writing"));
+			throw(new IOException("Partition not open or full"));
 		}
 	}
 
@@ -157,6 +158,13 @@ public class Partition implements Serializable {
 		return result;
 	}
 
+	public List<MRKeyVal> readAllContents() throws IOException {
+		if(readMode) {
+			return contents;
+		} else {
+			throw(new IOException("Open file for reading"));
+		}
+	}
 	//------------------------------------------
 
 	public void delete() {
@@ -207,12 +215,8 @@ public class Partition implements Serializable {
 		return size;
 	}
 
-	public List<MRKeyVal> readAllContents() throws IOException {
-		if(readMode) {
-			return contents;
-		} else {
-			throw(new IOException("Open file for reading"));
-		}
+	public boolean isEmpty() {
+		return size == 0;
 	}
 
 }
