@@ -14,7 +14,7 @@ import fileIO.PartitionWriter;
  * 
  * TODO Test this thoroughly
  */
-public class MergeSort {
+public class Mergesort {
 
 	public static List<Partition> sort(List<Partition> unsortedPartitions) {
 

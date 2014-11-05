@@ -1,5 +1,10 @@
 package messages;
+import fileIO.Partition;
 
-public class ReduceCommand implements Command{
-	//public Partition getPartition();
+public class ReduceCommand extends Command{
+	
+	public ReduceCommand(Partition[] parts, int id){
+		super(parts, id, "reduce");
+	}
+
 }

@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import mapreduce.MRKeyVal;
-import mergesort.MergeSort;
+import mergesort.Mergesort;
 import fileIO.Partition;
 
 public class testPartition {
@@ -57,7 +57,7 @@ public class testPartition {
 			partitions.add(p2);
 			partitions.add(p3);
 
-			List<Partition> sorted = MergeSort.sort(partitions);
+			List<Partition> sorted = Mergesort.sort(partitions);
 
 			// Print results
 			Partition p4 = sorted.get(0);
