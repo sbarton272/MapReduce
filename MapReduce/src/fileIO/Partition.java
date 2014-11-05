@@ -20,9 +20,11 @@ public class Partition implements Serializable {
 	// TODO filelocation
 	// TODO implements input stream?
 	// TODO load file over
+	// TODO delete state?
 
 	private static final long serialVersionUID = 2184080295517094612L;
 	private static final String TMP_DIR = "tmp";
+	private static final String EXT = ".partition";
 	private final String filePath;
 	private List<MRKeyVal> contents;
 	private final int maxSize;
@@ -36,7 +38,7 @@ public class Partition implements Serializable {
 	 * @param optimalPartitionSize
 	 */
 	public Partition(int maxSize) {
-		filePath = File.separator + TMP_DIR + File.separator + Integer.toString(this.hashCode());
+		filePath = TMP_DIR + File.separator + Integer.toString(this.hashCode()) + EXT;
 		this.maxSize = maxSize;
 		size = 0;
 
@@ -59,6 +61,12 @@ public class Partition implements Serializable {
 		// Create new file contents
 		contents = new ArrayList<MRKeyVal>();
 		size = 0;
+
+		// Create tmp directory if not present
+		if (Files.notExists(Paths.get(TMP_DIR))) {
+			File tmp = new File(TMP_DIR);
+			tmp.mkdir();
+		}
 
 	}
 
@@ -153,24 +161,39 @@ public class Partition implements Serializable {
 
 	public void delete() {
 		try {
-			Files.deleteIfExists(Paths.get(filePath));
+			Files.delete(Paths.get(filePath));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
 
+	//------------------------------------------
+
 	/**
 	 * Given filepath read in file and split into N partitions
 	 * 
 	 */
-	static Partition[] fileToPartitions(String filepath, int nPartitions) {
+	public static Partition[] fileToPartitions(String filepath, int nPartitions) {
+		// TODO
 		return null;
 	}
 
-	public static Partition newFromList(List<MRKeyVal> values, int maxSize) {
-		// TODO Auto-generated method stub
-		return null;
+	public static Partition newFromList(List<MRKeyVal> values, int maxSize) throws IOException {
+		if(values.size() > maxSize) {
+			throw(new IOException("Values too large"));
+		}
+		Partition result = new Partition(maxSize);
+
+		// Shortcut the write operation by simply setting values as contents
+		result.openWrite();
+		result.contents = values;
+		result.size = values.size();
+		result.closeWrite();
+
+		return result;
 	}
+
+	//------------------------------------------
 
 	public boolean isFull() {
 		return size == maxSize;
@@ -184,8 +207,12 @@ public class Partition implements Serializable {
 		return size;
 	}
 
-	public List<MRKeyVal> getContents() {
-		return contents;
+	public List<MRKeyVal> readAllContents() throws IOException {
+		if(readMode) {
+			return contents;
+		} else {
+			throw(new IOException("Open file for reading"));
+		}
 	}
 
 }

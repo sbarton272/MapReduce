@@ -2,32 +2,33 @@ package mapreduce;
 
 import java.io.Serializable;
 
-public class MRKeyVal implements Serializable, Comparable<Object> {
+public class MRKeyVal implements Serializable, Comparable<MRKeyVal> {
 
 	private static final long serialVersionUID = -5307943868247627381L;
-	private final Comparable<Object> key;
-	private final Object val;
+	private final String key;
+	private final int val;
 
-	public MRKeyVal(Comparable<Object> key, Object val) {
+	public MRKeyVal(String key, int val) {
 		this.key = key;
 		this.val = val;
 	}
 
-	public Comparable<Object> getKey() {
+	public String getKey() {
 		return key;
 	}
 
-	public Object getVal() {
+	public int getVal() {
 		return val;
 	}
 
 	@Override
-	public int compareTo(Object o) {
-		if (o instanceof MRKeyVal) {
-			return key.compareTo(((MRKeyVal) o).getKey());
-		} else {
-			return 0;
-		}
+	public int compareTo(MRKeyVal o) {
+		return key.compareTo(o.getKey());
+	}
+
+	@Override
+	public String toString() {
+		return key + ":" + Integer.toString(val);
 	}
 
 }

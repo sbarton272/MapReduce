@@ -13,9 +13,9 @@ import fileIO.Partition;
  * 
  * TODO Test this thoroughly
  */
-public class Mergesort {
+public class MergeSort {
 
-	public static Partition[] sort(Partition[] unsortedPartitions) {
+	public static List<Partition> sort(List<Partition> unsortedPartitions) {
 
 		// Sort individual partitions
 		// TODO can have mappers complete this step
@@ -29,14 +29,14 @@ public class Mergesort {
 		}
 
 		// Merge partitions into new partitions
-		List<Partition> sortedPartitions = mergePartitions(newPartitions);
+		List<Partition> sortedPartitions = mergePartitions(newPartitions, newPartitions.get(0).getMaxSize());
 
 		// Remove all old individually sorted partitions
 		for (Partition partition : newPartitions) {
 			partition.delete();
 		}
 
-		return (Partition[]) sortedPartitions.toArray();
+		return sortedPartitions;
 	}
 
 	//---------------------------------------------------------
@@ -51,7 +51,7 @@ public class Mergesort {
 
 			// Read in partition values
 			partition.openRead();
-			values = partition.getContents();
+			values = partition.readAllContents();
 			partition.closeRead();
 
 		} catch (IOException e) {
@@ -59,112 +59,108 @@ public class Mergesort {
 		}
 
 		Collections.sort(values); // TODO ordering?
-		return Partition.newFromList(values, partition.getMaxSize());
+		Partition result = null;
+		try {
+			result = Partition.newFromList(values, partition.getMaxSize());
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return result;
 	}
 
 	/**
 	 * Merge all partitions together at once
 	 * Merge into a new partition until full and then create the next partition
 	 */
-	private static List<Partition> mergePartitions(List<Partition> partitions) {
-		// TODO clean-up file IO try,catches - takes away from logic
+	private static List<Partition> mergePartitions(List<Partition> partitions, int newPartitionSize) {
 
-		List<Partition> sortedPartitions = new ArrayList<Partition>();
+		List<Partition> result;
+		try {
+			List<Partition> sortedPartitions = new ArrayList<Partition>();
 
-		// Make new partitions the optimal size so know how much to fill each
-		int newPartitionSize = partitions.get(0).getMaxSize();
-		Partition curPartition = new Partition(newPartitionSize);
+			// Make new partitions the optimal size so know how much to fill each
+			Partition curPartition = new Partition(newPartitionSize);
 
+			// Continue merging until all partitions are merged
+			MRKeyVal[] firstElems = populateFirstElems(partitions);
+
+			// Open current partition
+			curPartition.openWrite();
+
+			// Iterate through all partitions and fill new partitions until all old partitions are empty
+			int minIndex;
+			while(true) {
+				// Get max of first elements
+				minIndex = findMinIndex(firstElems);
+
+				// If all first elems are null, no max so we are done
+				if (minIndex == -1) {
+					break;
+				}
+
+				// If curPartition full, store and create a new partition
+				if (curPartition.isFull()) {
+					sortedPartitions.add(curPartition);
+
+					// Close current partition for writing
+					curPartition.closeWrite();
+
+					// Create new partition and open for writing
+					curPartition = new Partition(newPartitionSize);
+					curPartition.openWrite();
+				}
+
+				// Retrieved max elem from partition
+				// Write value to curPartition
+				curPartition.writeKeyVal(firstElems[minIndex]);
+
+				// Update the firstElems list
+				firstElems[minIndex] = partitions.get(minIndex).readKeyVal();
+			}
+
+			sortedPartitions.add(curPartition);
+
+			// Finally close last partition
+			curPartition.closeWrite();
+
+			// Close old partitions because done reading
+			for(int i = 0; i < partitions.size(); i++) {
+				partitions.get(i).closeRead();
+			}
+
+			result = sortedPartitions;
+		} catch (IOException e) {
+			result = null;
+		}
+		return result;
+	}
+
+	private static MRKeyVal[] populateFirstElems(List<Partition> partitions) throws IOException {
 		// Continue merging until all partitions are merged
 		MRKeyVal[] firstElems = new MRKeyVal[partitions.size()];
 
 		// Populate first element array
 		for(int i = 0; i < partitions.size(); i++) {
-			try {
-
-				// Open for reading, close when all done
-				partitions.get(i).openRead();
-				firstElems[i] = partitions.get(i).readKeyVal();
-
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			// Open for reading, close when all done
+			partitions.get(i).openRead();
+			firstElems[i] = partitions.get(i).readKeyVal();
 		}
-
-		// Open current partition
-		try {
-			curPartition.openWrite();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
-		// Iterate through all partitions and fill new partitions until all old partitions are empty
-		int maxIndex;
-		while(true) {
-			// Get max of first elements
-			maxIndex = findMaxIndex(firstElems);
-
-			// If all first elems are null, no max so we are done
-			if (maxIndex == -1) {
-				break;
-			}
-
-			// Retrieved max elem from partition
-			// Write value to curPartition
-			try {
-				curPartition.writeKeyVal(firstElems[maxIndex]);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-
-			// If curPartition full, store and create a new partition
-			if (curPartition.isFull()) {
-				sortedPartitions.add(curPartition);
-
-				// Close current partition for writing
-				try {
-					curPartition.closeWrite();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-
-				// Create new parition and open for writing
-				curPartition = new Partition(newPartitionSize);
-				try {
-					curPartition.openWrite();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-
-			// Update the firstElems list
-			try {
-				firstElems[maxIndex] = partitions.get(maxIndex).readKeyVal();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-
-		// Close old partitions because done reading
-		for(int i = 0; i < partitions.size(); i++) {
-			partitions.get(i).closeRead();
-		}
-
-		return sortedPartitions;
+		return firstElems;
 	}
 
-	private static int findMaxIndex(MRKeyVal[] elems) {
+	private static int findMinIndex(MRKeyVal[] elems) {
 
-		int maxIndex = -1;
-		MRKeyVal max = null;
+		int minIndex = -1;
+		MRKeyVal min = null;
 		for(int i = 0; i < elems.length; i++ ) {
-			// TODO how does compare work?
-			if ((elems[i] != null) && (elems[i].compareTo(max) >= 0)) {
-				maxIndex = i;
-				max = elems[i];
+			if (elems[i] != null) {
+				if ((min == null) || (elems[i].compareTo(min) <= 0)) {
+					minIndex = i;
+					min = elems[i];
+				}
 			}
 		}
-		return maxIndex;
+		return minIndex;
 	}
 
 }
