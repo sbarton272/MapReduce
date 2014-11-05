@@ -13,9 +13,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
-import mapreduce.MRKeyVal;
-
-public class Partition implements Serializable {
+public abstract class Partition<T> implements Serializable {
 
 	// TODO filelocation
 	// TODO implements input stream?
@@ -27,9 +25,9 @@ public class Partition implements Serializable {
 	private static final String TMP_DIR = "tmp";
 	private static final String EXT = ".partition";
 	private final String filePath;
-	private List<MRKeyVal> contents;
+	protected List<T> contents;
 	private final int maxSize;
-	private int size = 0;
+	protected int size = 0;
 	private boolean writeMode = false;
 	private boolean readMode = false;
 	private int curIndx;
@@ -43,8 +41,7 @@ public class Partition implements Serializable {
 		this.maxSize = maxSize;
 		size = 0;
 
-		// Make tmp directory if not present
-		// TODO
+		// TODO Make tmp directory if not present
 		// TODO set uri to local location
 
 	}
@@ -60,7 +57,7 @@ public class Partition implements Serializable {
 		writeMode = true;
 
 		// Create new file contents
-		contents = new ArrayList<MRKeyVal>();
+		contents = new ArrayList<T>();
 		size = 0;
 
 		// Create tmp directory if not present
@@ -107,7 +104,7 @@ public class Partition implements Serializable {
 		// Read in the file contents, messy syntax because of warning due to runtime type check
 		try {
 			@SuppressWarnings("unchecked")
-			List<MRKeyVal> contents = (List<MRKeyVal>) inStream.readObject();
+			List<T> contents = (List<T>) inStream.readObject();
 			this.contents = contents;
 		} catch (ClassNotFoundException e) {
 
@@ -132,17 +129,17 @@ public class Partition implements Serializable {
 
 	//------------------------------------------
 
-	public void writeKeyVal(MRKeyVal mrKeyVal) throws IOException {
+	public void write(T val) throws IOException {
 		if(writeMode && (size < maxSize)){
-			contents.add(mrKeyVal);
+			contents.add(val);
 			size++;
 		} else {
 			throw(new IOException("Partition not open or full"));
 		}
 	}
 
-	public MRKeyVal readKeyVal() throws IOException {
-		MRKeyVal result = null;
+	public T read() throws IOException {
+		T result = null;
 		if(readMode) {
 
 			// Read current object unless at end
@@ -158,7 +155,7 @@ public class Partition implements Serializable {
 		return result;
 	}
 
-	public List<MRKeyVal> readAllContents() throws IOException {
+	public List<T> readAllContents() throws IOException {
 		if(readMode) {
 			return contents;
 		} else {
@@ -173,32 +170,6 @@ public class Partition implements Serializable {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-	}
-
-	//------------------------------------------
-
-	/**
-	 * Given filepath read in file and split into N partitions
-	 * 
-	 */
-	public static Partition[] fileToPartitions(String filepath, int nPartitions) {
-		// TODO
-		return null;
-	}
-
-	public static Partition newFromList(List<MRKeyVal> values, int maxSize) throws IOException {
-		if(values.size() > maxSize) {
-			throw(new IOException("Values too large"));
-		}
-		Partition result = new Partition(maxSize);
-
-		// Shortcut the write operation by simply setting values as contents
-		result.openWrite();
-		result.contents = values;
-		result.size = values.size();
-		result.closeWrite();
-
-		return result;
 	}
 
 	//------------------------------------------

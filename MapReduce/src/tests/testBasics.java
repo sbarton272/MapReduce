@@ -6,20 +6,20 @@ import java.util.List;
 
 import mapreduce.MRKeyVal;
 import mergesort.MergeSort;
-import fileIO.Partition;
+import fileIO.KVPartition;
 
-public class testPartition {
+public class testBasics {
 
 	public static void main(String[] args) {
 
 		int partitionSize = 5;
-		Partition p1 = new Partition(partitionSize);
+		KVPartition p1 = new KVPartition(partitionSize);
 
 		try {
 			p1.openWrite();
-			p1.writeKeyVal(new MRKeyVal("foo", 2));
-			p1.writeKeyVal(new MRKeyVal("bar", 2));
-			p1.writeKeyVal(new MRKeyVal("zip", 2));
+			p1.write(new MRKeyVal("foo", 2));
+			p1.write(new MRKeyVal("bar", 2));
+			p1.write(new MRKeyVal("zip", 2));
 			p1.closeWrite();
 		}catch (Exception e) {
 			System.out.println("Ooops");
@@ -27,10 +27,10 @@ public class testPartition {
 
 		try {
 			p1.openRead();
-			System.out.println(p1.readKeyVal().getKey());
-			System.out.println(p1.readKeyVal().getKey());
-			System.out.println(p1.readKeyVal().getKey());
-			System.out.println(p1.readKeyVal());
+			System.out.println(p1.read().getKey());
+			System.out.println(p1.read().getKey());
+			System.out.println(p1.read().getKey());
+			System.out.println(p1.read());
 			p1.closeRead();
 			p1.openRead();
 			System.out.println(p1.readAllContents());
@@ -51,22 +51,22 @@ public class testPartition {
 		l2.addAll(l);
 		l2.add(new MRKeyVal("g",2));
 		try {
-			Partition p2 = Partition.newFromList(l, 5);
-			Partition p3 = Partition.newFromList(l2, 5);
-			List<Partition> partitions = new ArrayList<Partition>();
+			KVPartition p2 = KVPartition.newFromList(l, 5);
+			KVPartition p3 = KVPartition.newFromList(l2, 5);
+			List<KVPartition> partitions = new ArrayList<KVPartition>();
 			partitions.add(p2);
 			partitions.add(p3);
 
-			List<Partition> sorted = MergeSort.sort(partitions);
+			List<KVPartition> sorted = MergeSort.sort(partitions);
 
 			// Print results
-			Partition p4 = sorted.get(0);
+			KVPartition p4 = sorted.get(0);
 			p4.openRead();
 			System.out.println(p4.readAllContents());
 			p4.closeRead();
 			p4.delete();
 
-			Partition p5 = sorted.get(1);
+			KVPartition p5 = sorted.get(1);
 			p5.openRead();
 			System.out.println(p5.readAllContents());
 			p5.closeRead();

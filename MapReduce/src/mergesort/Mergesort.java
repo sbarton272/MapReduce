@@ -6,8 +6,8 @@ import java.util.Collections;
 import java.util.List;
 
 import mapreduce.MRKeyVal;
-import fileIO.Partition;
-import fileIO.PartitionWriter;
+import fileIO.KVPartition;
+import fileIO.KVPartitionWriter;
 
 /**
  * Take in partitions and return new sorted partitions. Note that this removes the old partitions.
@@ -16,33 +16,33 @@ import fileIO.PartitionWriter;
  */
 public class MergeSort {
 
-	public static List<Partition> sort(List<Partition> unsortedPartitions) {
+	public static List<KVPartition> sort(List<KVPartition> unsortedKVPartitions) {
 
 		// Sort individual partitions
 		// TODO can have mappers complete this step
-		List<Partition> newPartitions = new ArrayList<Partition>();
-		for (Partition partition : unsortedPartitions) {
+		List<KVPartition> newKVPartitions = new ArrayList<KVPartition>();
+		for (KVPartition partition : unsortedKVPartitions) {
 
-			newPartitions.add(sortPartition(partition));
+			newKVPartitions.add(sortKVPartition(partition));
 
 			// Remove old partition
 			partition.delete();
 		}
 
 		// Merge partitions into new partitions
-		List<Partition> sortedPartitions = mergePartitions(newPartitions, newPartitions.get(0).getMaxSize());
+		List<KVPartition> sortedKVPartitions = mergeKVPartitions(newKVPartitions, newKVPartitions.get(0).getMaxSize());
 
 		// Remove all old individually sorted partitions
-		for (Partition partition : newPartitions) {
+		for (KVPartition partition : newKVPartitions) {
 			partition.delete();
 		}
 
-		return sortedPartitions;
+		return sortedKVPartitions;
 	}
 
 	//---------------------------------------------------------
 
-	private static Partition sortPartition(Partition partition) {
+	private static KVPartition sortKVPartition(KVPartition partition) {
 
 		// Read whole partition into list of lists
 		// This is the first split
@@ -60,9 +60,9 @@ public class MergeSort {
 		}
 
 		Collections.sort(values); // TODO ordering?
-		Partition result = null;
+		KVPartition result = null;
 		try {
-			result = Partition.newFromList(values, partition.getMaxSize());
+			result = KVPartition.newFromList(values, partition.getMaxSize());
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -73,16 +73,16 @@ public class MergeSort {
 	 * Merge all partitions together at once
 	 * Merge into a new partition until full and then create the next partition
 	 */
-	private static List<Partition> mergePartitions(List<Partition> partitions, int newPartitionSize) {
+	private static List<KVPartition> mergeKVPartitions(List<KVPartition> partitions, int newKVPartitionSize) {
 
-		List<Partition> sortedPartitions = new ArrayList<Partition>();
+		List<KVPartition> sortedKVPartitions = new ArrayList<KVPartition>();
 		try {
 
 			// Continue merging until all partitions are merged
 			MRKeyVal[] firstElems = populateFirstElems(partitions);
 
 			// Make new partitions the optimal size so know how much to fill each
-			PartitionWriter partitionWriter = new PartitionWriter(newPartitionSize);
+			KVPartitionWriter partitionWriter = new KVPartitionWriter(newKVPartitionSize);
 
 			// Open partition writer, this will write partitions until full and then fill a new one
 			partitionWriter.open();
@@ -103,11 +103,11 @@ public class MergeSort {
 				partitionWriter.writeKeyVal(firstElems[minIndex]);
 
 				// Update the firstElems list
-				firstElems[minIndex] = partitions.get(minIndex).readKeyVal();
+				firstElems[minIndex] = partitions.get(minIndex).read();
 			}
 
 			// Finally close last partition and get all created partitions
-			sortedPartitions = partitionWriter.close();
+			sortedKVPartitions = partitionWriter.close();
 
 			// Close old partitions because done reading
 			for(int i = 0; i < partitions.size(); i++) {
@@ -115,12 +115,12 @@ public class MergeSort {
 			}
 
 		} catch (IOException e) {
-			sortedPartitions = null;
+			sortedKVPartitions = null;
 		}
-		return sortedPartitions;
+		return sortedKVPartitions;
 	}
 
-	private static MRKeyVal[] populateFirstElems(List<Partition> partitions) throws IOException {
+	private static MRKeyVal[] populateFirstElems(List<KVPartition> partitions) throws IOException {
 		// Continue merging until all partitions are merged
 		MRKeyVal[] firstElems = new MRKeyVal[partitions.size()];
 
@@ -128,7 +128,7 @@ public class MergeSort {
 		for(int i = 0; i < partitions.size(); i++) {
 			// Open for reading, close when all done
 			partitions.get(i).openRead();
-			firstElems[i] = partitions.get(i).readKeyVal();
+			firstElems[i] = partitions.get(i).read();
 		}
 		return firstElems;
 	}
