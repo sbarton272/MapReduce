@@ -2,12 +2,22 @@ package master;
 
 public class Master {
 
-	/**
-	 * @param args
-	 */
 	public static void main(String[] args) {
-		// TODO Auto-generated method stub
+		// TODO accept command line prompts
+		// TODO control mapreduce functionality/participants
 
+	}
+	
+	public void coordinateMap(){
+		
+	}
+	
+	public void sortAfterMap(){
+		
+	}
+	
+	public void coordinateReduce(){
+		
 	}
 	
 	public void startMapReduce(){

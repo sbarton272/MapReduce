@@ -1,5 +1,10 @@
 package messages;
+import fileIO.Partition;
 
-public class MapAcknowledge implements Acknowledge{
+public class MapAcknowledge extends Acknowledge{
+	
+	public MapAcknowledge(Partition[] parts, int id){
+		super(parts, id, "map");
+	}
 
 }

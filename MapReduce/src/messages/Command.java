@@ -1,5 +1,10 @@
 package messages;
+import fileIO.Partition;
 
-public interface Command extends Message {
+public abstract class Command extends Message {
+	
+	public Command(Partition[] parts, int id, String t){
+		super(parts, id, t);
+	}
 	
 }

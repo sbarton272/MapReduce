@@ -14,7 +14,7 @@ import fileIO.KVPartitionWriter;
  * 
  * TODO Test this thoroughly
  */
-public class MergeSort {
+public class Mergesort {
 
 	public static List<KVPartition> sort(List<KVPartition> unsortedKVPartitions) {
 

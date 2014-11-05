@@ -2,11 +2,9 @@ package participant;
 
 public class Participant {
 
-	/**
-	 * @param args
-	 */
 	public static void main(String[] args) {
-		// TODO Auto-generated method stub
+		// TODO listen for commands from master and perform them
+		// TODO communicate properly with master about tasks
 
 	}
 	
