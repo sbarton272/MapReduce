@@ -9,6 +9,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.PrintWriter;
 import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -242,6 +243,23 @@ public class Partition<T> implements Serializable {
 		partitionWriter.close();
 
 		return partitionWriter.getPartitions();
+	}
+
+	/**
+	 * Write partitions out to an output file
+	 * @throws IOException
+	 */
+	public static void partitionsToFile(List<Partition<MRKeyVal>> partitions, String filepath, String delimeter) throws IOException {
+
+		PrintWriter writer = new PrintWriter(filepath);
+
+		for (Partition<MRKeyVal> p : partitions) {
+			List<MRKeyVal> contents = p.readAllContents();
+			for (MRKeyVal kv : contents) {
+				writer.println(kv.getKey() + delimeter + Integer.toString(kv.getVal()));
+			}
+		}
+		writer.close();
 	}
 
 }

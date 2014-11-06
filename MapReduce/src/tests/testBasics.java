@@ -95,10 +95,22 @@ public class testBasics {
 			List<Partition<MRKeyVal>> reduced = reducer.reduce(sorted, partitionSize);
 			printAllPartitions(reduced);
 
+			// Test write to output file
+			String outFile = "bin/letterCount.txt";
+			Partition.partitionsToFile(reduced, outFile, "-");
+			List<Partition<String>> output = Partition.fileToPartitions(outFile, partitionSize);
+			for(Partition<String> p : output) {
+				System.out.print(p.readAllContents());
+			}
+			System.out.println();
+
 
 		} catch (IOException e) {
 			System.out.println("Ooops");
 		}
+
+		// TODO test null values and other edge cases
+
 	}
 
 	private static void printAllPartitions(List<Partition<MRKeyVal>> partitions) throws IOException {
