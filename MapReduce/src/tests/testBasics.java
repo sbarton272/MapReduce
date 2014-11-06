@@ -5,15 +5,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 import mapreduce.MRKeyVal;
+import mapreduce.Map;
+import mapreduce.Mapper;
+import mapreduce.Reduce;
+import mapreduce.Reducer;
 import mergesort.MergeSort;
-import fileIO.KVPartition;
+import fileIO.Partition;
 
 public class testBasics {
 
 	public static void main(String[] args) {
 
 		int partitionSize = 5;
-		KVPartition p1 = new KVPartition(partitionSize);
+		Partition<MRKeyVal> p1 = new Partition<MRKeyVal>(partitionSize);
 
 		try {
 			p1.openWrite();
@@ -32,11 +36,8 @@ public class testBasics {
 			System.out.println(p1.read().getKey());
 			System.out.println(p1.read());
 			p1.closeRead();
-			p1.openRead();
 			System.out.println(p1.readAllContents());
-			p1.closeRead();
 			p1.delete();
-			p1.openRead();
 
 		}catch (Exception e) {
 			System.out.println("Ooops");
@@ -51,31 +52,85 @@ public class testBasics {
 		l2.addAll(l);
 		l2.add(new MRKeyVal("g",2));
 		try {
-			KVPartition p2 = KVPartition.newFromList(l, 5);
-			KVPartition p3 = KVPartition.newFromList(l2, 5);
-			List<KVPartition> partitions = new ArrayList<KVPartition>();
+			Partition<MRKeyVal> p2 = Partition.newFromKVList(l, 5);
+			Partition<MRKeyVal> p3 = Partition.newFromKVList(l2, 5);
+			List<Partition<MRKeyVal>> partitions = new ArrayList<Partition<MRKeyVal>>();
 			partitions.add(p2);
 			partitions.add(p3);
 
-			List<KVPartition> sorted = MergeSort.sort(partitions);
+			List<Partition<MRKeyVal>> sorted = MergeSort.sort(partitions);
 
 			// Print results
-			KVPartition p4 = sorted.get(0);
-			p4.openRead();
+			Partition<MRKeyVal> p4 = sorted.get(0);
 			System.out.println(p4.readAllContents());
-			p4.closeRead();
 			p4.delete();
 
-			KVPartition p5 = sorted.get(1);
-			p5.openRead();
+			Partition<MRKeyVal> p5 = sorted.get(1);
 			System.out.println(p5.readAllContents());
-			p5.closeRead();
 			p5.delete();
 		} catch (IOException e) {
 			System.out.println("Ooops");
 		}
 
+		try {
 
+			// Load input file
+			List<Partition<String>> input = Partition.fileToPartitions("bin/letters.txt", partitionSize);
+			for(Partition<String> p : input) {
+				System.out.print(p.readAllContents());
+			}
+			System.out.println();
+
+			// Test map
+			Mapper mapper = new Mapper(new MapLowerCase());
+			List<Partition<MRKeyVal>> mapped = mapper.map(input, partitionSize);
+			printAllPartitions(mapped);
+
+			// Test sort
+			List<Partition<MRKeyVal>> sorted = MergeSort.sort(mapped);
+			printAllPartitions(sorted);
+
+			// Test reduce
+			Reducer reducer = new Reducer(new ReduceWordCount());
+			List<Partition<MRKeyVal>> reduced = reducer.reduce(sorted, partitionSize);
+			printAllPartitions(reduced);
+
+
+		} catch (IOException e) {
+			System.out.println("Ooops");
+		}
+	}
+
+	private static void printAllPartitions(List<Partition<MRKeyVal>> partitions) throws IOException {
+		for(Partition<MRKeyVal> p : partitions) {
+			System.out.print(p.readAllContents());
+		}
+		System.out.println();
+	}
+}
+
+class MapLowerCase implements Map {
+
+	@Override
+	public MRKeyVal map(String input) {
+		return new MRKeyVal(input.toLowerCase(), 1);
+	}
+
+}
+
+class ReduceWordCount implements Reduce {
+
+	@Override
+	public MRKeyVal reduce(String key, List<Integer> values) {
+		if (key == null) {
+			return null;
+		}
+
+		int sum = 0;
+		for (int val : values) {
+			sum += val;
+		}
+		return new MRKeyVal(key, sum);
 	}
 
 }

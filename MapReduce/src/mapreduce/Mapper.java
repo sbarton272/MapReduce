@@ -3,9 +3,8 @@ package mapreduce;
 import java.io.IOException;
 import java.util.List;
 
-import fileIO.InputPartition;
-import fileIO.KVPartition;
-import fileIO.KVPartitionWriter;
+import fileIO.Partition;
+import fileIO.PartitionWriter;
 
 /**
  * Handles mapping on the participant
@@ -18,21 +17,19 @@ public class Mapper {
 		this.mapFn = mapFn;
 	}
 
-	public List<KVPartition> map(List<InputPartition> oldPartitions, int partitionSize) throws IOException {
+	public List<Partition<MRKeyVal>> map(List<Partition<String>> oldPartitions, int partitionSize) throws IOException {
 
 		// TODO tmp dir per participant to get around AFS
 
 		// Start partitionWriter to write mapped values
-		KVPartitionWriter partitionWriter = new KVPartitionWriter(partitionSize);
+		PartitionWriter<MRKeyVal> partitionWriter = new PartitionWriter<MRKeyVal>(partitionSize);
 		partitionWriter.open();
 
 		// Iterate through partitions
-		for (InputPartition p : oldPartitions) {
+		for (Partition<String> p : oldPartitions) {
 
 			// Get partition values
-			p.openRead();
 			List<String> input = p.readAllContents();
-			p.closeRead();
 
 			// Iterate through partition values and map to new partition
 			for (String val : input) {
@@ -42,7 +39,7 @@ public class Mapper {
 
 				// Do not write null values to new partition
 				if (mappedVal != null) {
-					partitionWriter.writeKeyVal(mappedVal);
+					partitionWriter.write(mappedVal);
 				}
 			}
 
@@ -54,7 +51,7 @@ public class Mapper {
 
 		// TODO test everything maps to null
 
-		return partitionWriter.getKVPartitions();
+		return partitionWriter.getPartitions();
 	}
 
 }

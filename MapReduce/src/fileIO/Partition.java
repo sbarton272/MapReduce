@@ -1,9 +1,11 @@
 package fileIO;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -13,7 +15,9 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
-public abstract class Partition<T> implements Serializable {
+import mapreduce.MRKeyVal;
+
+public class Partition<T> implements Serializable {
 
 	// TODO filelocation
 	// TODO implements input stream?
@@ -161,11 +165,12 @@ public abstract class Partition<T> implements Serializable {
 	}
 
 	public List<T> readAllContents() throws IOException {
-		if(readMode) {
-			return contents;
-		} else {
-			throw(new IOException("Open file for reading"));
-		}
+
+		// Open read to refresh contents
+		openRead();
+		List<T> result = contents;
+		closeRead();
+		return result;
 	}
 	//------------------------------------------
 
@@ -193,6 +198,50 @@ public abstract class Partition<T> implements Serializable {
 
 	public boolean isEmpty() {
 		return size == 0;
+	}
+
+	//------------------------------------------
+
+	public static Partition<MRKeyVal> newFromKVList(List<MRKeyVal> values, int maxSize) throws IOException {
+		if(values.size() > maxSize) {
+			throw(new IOException("Values too large"));
+		}
+		Partition<MRKeyVal> result = new Partition<MRKeyVal>(maxSize);
+
+		// Shortcut the write operation by simply setting values as contents
+		result.openWrite();
+		result.contents = values;
+		result.size = values.size();
+		result.closeWrite();
+
+		return result;
+	}
+
+	/**
+	 * Given file path read in file and split into N partitions
+	 * @throws IOException
+	 */
+	public static List<Partition<String>> fileToPartitions(String filepath, int partitionSize) throws IOException {
+
+		// Open file
+		BufferedReader reader = new BufferedReader(new FileReader(filepath));
+
+		// Partition writer to create partitions
+		PartitionWriter<String> partitionWriter = new PartitionWriter<String>(partitionSize);
+		partitionWriter.open();
+
+		// Iterate through input file
+		String line = reader.readLine();
+		while (line != null) {
+			partitionWriter.write(line);
+			line = reader.readLine();
+		}
+
+		// Close reader, partitionWriter and file
+		reader.close();
+		partitionWriter.close();
+
+		return partitionWriter.getPartitions();
 	}
 
 }
