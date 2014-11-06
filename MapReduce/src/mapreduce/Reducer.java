@@ -1,6 +1,7 @@
 package mapreduce;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import fileIO.KVPartition;
@@ -24,6 +25,10 @@ public class Reducer {
 		KVPartitionWriter partitionWriter = new KVPartitionWriter(partitionSize);
 		partitionWriter.open();
 
+		// Values used to collect common key values
+		List<Integer> commonValues = new ArrayList<Integer>();
+		String curKey = null;
+
 		// Iterate through partitions
 		for (KVPartition p : oldPartitions) {
 
@@ -32,11 +37,24 @@ public class Reducer {
 			List<MRKeyVal> input = p.readAllContents();
 			p.closeRead();
 
-			// Iterate through partition values and map to new partition
-			for (MRKeyVal val : input) {
+			// Iterate through partition values and save to new partition
+			// Collect values by key and once we have seen all of one key
+			// we will reduce and save the result
+			for (MRKeyVal keyVal : input) {
 
-				// TODO
-				reduceFn.reduce(priorKV, val);
+				if (keyVal.getKey().equals(curKey)) {
+					commonValues.add(keyVal.getVal());
+				} else {
+
+					// New key so reduce old key and save results
+					MRKeyVal reduceResult = reduceFn.reduce(curKey, commonValues);
+					partitionWriter.writeKeyVal(reduceResult);
+
+					// Set new key and reset commonValues
+					curKey = keyVal.getKey();
+					commonValues.clear();
+
+				}
 			}
 
 			// Remove old partitions
@@ -45,11 +63,6 @@ public class Reducer {
 		}
 		partitionWriter.close();
 
-		// TODO test everything reduces to null
-
 		return partitionWriter.getKVPartitions();
-
-
 	}
-
 }

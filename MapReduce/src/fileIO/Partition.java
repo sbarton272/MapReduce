@@ -130,6 +130,11 @@ public abstract class Partition<T> implements Serializable {
 	//------------------------------------------
 
 	public void write(T val) throws IOException {
+		// Do not write null value
+		if (val == null) {
+			return;
+		}
+
 		if(writeMode && (size < maxSize)){
 			contents.add(val);
 			size++;
