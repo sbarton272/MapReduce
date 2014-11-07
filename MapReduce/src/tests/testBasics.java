@@ -99,11 +99,18 @@ public class testBasics {
 			String outFile = "resources/letterCount.txt";
 			Partition.partitionsToFile(reduced, outFile, "-");
 			List<Partition<String>> output = Partition.fileToPartitions(outFile, partitionSize);
+
+			// Print all partitions and delete them
 			for(Partition<String> p : output) {
 				System.out.print(p.readAllContents());
+				p.delete();
 			}
 			System.out.println();
 
+			// Remove reduced
+			for(Partition<MRKeyVal> p : reduced) {
+				p.delete();
+			}
 
 		} catch (IOException e) {
 			System.out.println("Ooops");

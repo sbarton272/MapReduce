@@ -34,30 +34,26 @@ public class Partition<T> implements Serializable {
 	private static final String TMP_DIR = "tmp";
 	private static final String EXT = ".partition";
 	private final int maxSize;
-	private final String filePath;
 	private List<T> contents;
-	private static String fileHost;
+	private final String filePath;
+	private String hostName;
 	private int size = 0;
 	private long byteSize = 0;
 	private boolean writeMode = false;
 	private boolean readMode = false;
 	private int curIndx;
 
-	/**
-	 *  Create empty partition
-	 * @param optimalPartitionSize
-	 */
 	public Partition(int maxSize) {
-		filePath = TMP_DIR + File.separator + Integer.toString(this.hashCode()) + EXT;
-		this.maxSize = maxSize;
 		try {
-			fileHost = InetAddress.getLocalHost().getHostName();
+			this.hostName = InetAddress.getLocalHost().getHostName();
 		} catch (UnknownHostException e) {
-			fileHost = null;
+			System.out.println("Parition unable to determine hostname");
+			e.printStackTrace();
 		}
+		this.maxSize = maxSize;
+		this.filePath = TMP_DIR + File.separator + Integer.toString(this.hashCode()) + EXT;;
 
 		// TODO Make tmp directory if not present
-
 	}
 
 	//------------------------------------------
@@ -111,14 +107,14 @@ public class Partition<T> implements Serializable {
 			throw(new IOException());
 		}
 
-		// Load contents, if necessary get remote copy
+		// Load contents
 		ObjectInputStream inStream;
 		try {
 			inStream = new ObjectInputStream(
 					new FileInputStream(filePath));
-		} catch (FileNotFoundException e){
+		} catch (FileNotFoundException e) {
 
-			// Try getting remote copy
+			// Try loading from remote
 			loadRemoteFile();
 			inStream = new ObjectInputStream(
 					new FileInputStream(filePath));
@@ -133,13 +129,17 @@ public class Partition<T> implements Serializable {
 
 			// Do not expose underlying object reading functionality to the user
 			throw(new IOException());
+		} finally {
+			if(inStream != null) inStream.close();
 		}
-
-		inStream.close();
 
 		// Set reading state
 		readMode = true;
 		curIndx = 0;
+	}
+
+	public void closeRead() {
+		readMode = false;
 	}
 
 	private void loadRemoteFile() throws IOException {
@@ -150,7 +150,7 @@ public class Partition<T> implements Serializable {
 		try {
 
 			// Open socket to host machine
-			soc = new Socket(fileHost, FileServer.PORT);
+			soc = new Socket(hostName, FileServer.PORT);
 
 			// Generate partition request message
 			FileRequest req = new FileRequest(filePath, byteSize);
@@ -174,7 +174,7 @@ public class Partition<T> implements Serializable {
 			}
 
 			// Update host machine to this machine as this partition changes the local copy
-			fileHost = InetAddress.getLocalHost().getHostName();
+			hostName = InetAddress.getLocalHost().getHostName();
 
 		} catch (IOException e) {
 
@@ -192,10 +192,6 @@ public class Partition<T> implements Serializable {
 				soc.close();
 			}
 		}
-	}
-
-	public void closeRead() {
-		readMode = false;
 	}
 
 	//------------------------------------------
@@ -263,6 +259,10 @@ public class Partition<T> implements Serializable {
 		return size;
 	}
 
+	public String getFilePath() {
+		return filePath;
+	}
+
 	public boolean isEmpty() {
 		return size == 0;
 	}
@@ -289,6 +289,7 @@ public class Partition<T> implements Serializable {
 	 * @throws IOException
 	 */
 	public static List<Partition<String>> fileToPartitions(String filepath, int partitionSize) throws IOException {
+		// TODO remove from partition
 
 		// Open file
 		BufferedReader reader = new BufferedReader(new FileReader(filepath));

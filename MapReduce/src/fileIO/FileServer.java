@@ -24,6 +24,8 @@ public class FileServer extends Thread {
 		try {
 			serverSoc = new ServerSocket(PORT);
 
+			System.out.println("File server online");
+
 			// Run indefinitely
 			while(true){
 
@@ -39,8 +41,16 @@ public class FileServer extends Thread {
 							soc.getInputStream());
 					FileRequest req = (FileRequest) reqStream.readObject();
 
+					System.out.println("Recieved request for " + req.getFilePath());
+
 					// Find file
-					File requestedFile = new File(req.getFilePath());
+					//File requestedFile = new File(req.getFilePath());
+
+					// TODO testing
+					File requestedFile = new File("resources/letters.txt");
+
+					// Ensure file in tmp folder
+					// TODO
 
 					// Ensure length is same as request
 					if (requestedFile.length() != req.getByteSize()) {
