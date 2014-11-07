@@ -75,7 +75,7 @@ public class testBasics {
 		try {
 
 			// Load input file
-			List<Partition<String>> input = Partition.fileToPartitions("bin/letters.txt", partitionSize);
+			List<Partition<String>> input = Partition.fileToPartitions("resources/letters.txt", partitionSize);
 			for(Partition<String> p : input) {
 				System.out.print(p.readAllContents());
 			}
@@ -96,7 +96,7 @@ public class testBasics {
 			printAllPartitions(reduced);
 
 			// Test write to output file
-			String outFile = "bin/letterCount.txt";
+			String outFile = "resources/letterCount.txt";
 			Partition.partitionsToFile(reduced, outFile, "-");
 			List<Partition<String>> output = Partition.fileToPartitions(outFile, partitionSize);
 			for(Partition<String> p : output) {

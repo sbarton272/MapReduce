@@ -1,5 +1,6 @@
 package fileIO;
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -7,32 +8,37 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.io.Serializable;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
 import mapreduce.MRKeyVal;
+import messages.FileRequest;
 
 public class Partition<T> implements Serializable {
 
-	// TODO filelocation
-	// TODO implements input stream?
-	// TODO load file over
 	// TODO delete state?
 	// TODO may be able to implement without serializable object stuff
+	// TODO too much code here
 
 	private static final long serialVersionUID = 2184080295517094612L;
 	private static final String TMP_DIR = "tmp";
 	private static final String EXT = ".partition";
-	private final String filePath;
-	protected List<T> contents;
 	private final int maxSize;
-	protected int size = 0;
+	private final String filePath;
+	private List<T> contents;
+	private static String fileHost;
+	private int size = 0;
+	private long byteSize = 0;
 	private boolean writeMode = false;
 	private boolean readMode = false;
 	private int curIndx;
@@ -44,10 +50,13 @@ public class Partition<T> implements Serializable {
 	public Partition(int maxSize) {
 		filePath = TMP_DIR + File.separator + Integer.toString(this.hashCode()) + EXT;
 		this.maxSize = maxSize;
-		size = 0;
+		try {
+			fileHost = InetAddress.getLocalHost().getHostName();
+		} catch (UnknownHostException e) {
+			fileHost = null;
+		}
 
 		// TODO Make tmp directory if not present
-		// TODO set uri to local location
 
 	}
 
@@ -82,6 +91,15 @@ public class Partition<T> implements Serializable {
 		// Write contents
 		outStream.writeObject(contents);
 		outStream.close();
+
+		// Get number of bytes
+		byteSize = new File(filePath).length();
+
+		// Check that the file size is not too large to send over network
+		if (byteSize > Integer.MAX_VALUE) {
+			// TODO best idea? check elsewhere
+			throw(new IOException("File too large"));
+		}
 
 		writeMode = false;
 
@@ -124,8 +142,56 @@ public class Partition<T> implements Serializable {
 		curIndx = 0;
 	}
 
-	private void loadRemoteFile() {
-		// TODO Load if not present
+	private void loadRemoteFile() throws IOException {
+
+		Socket soc = null;
+		ObjectOutputStream outStream = null;
+		BufferedOutputStream fileOutStream = null;
+		try {
+
+			// Open socket to host machine
+			soc = new Socket(fileHost, FileServer.PORT);
+
+			// Generate partition request message
+			FileRequest req = new FileRequest(filePath, byteSize);
+
+			// TODO times out if bad request?
+
+			// Send message
+			outStream = new ObjectOutputStream(
+					soc.getOutputStream());
+			outStream.writeObject(req);
+
+			// Get input and file streams, create file at same filepath
+			InputStream inStream = soc.getInputStream();
+			fileOutStream = new BufferedOutputStream(new FileOutputStream(filePath));
+
+			// Read stream and write to file
+			byte[] bytes = new byte[(int) byteSize];
+			int n;
+			while( (n = inStream.read(bytes, 0, bytes.length)) != -1) {
+				fileOutStream.write(bytes, 0, n);
+			}
+
+			// Update host machine to this machine as this partition changes the local copy
+			fileHost = InetAddress.getLocalHost().getHostName();
+
+		} catch (IOException e) {
+
+			// TODO
+
+		} finally {
+			// Close streams and socket
+			if (outStream != null) {
+				outStream.close();
+			}
+			if (fileOutStream != null) {
+				fileOutStream.close();
+			}
+			if (soc != null) {
+				soc.close();
+			}
+		}
 	}
 
 	public void closeRead() {
