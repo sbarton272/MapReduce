@@ -59,14 +59,20 @@ public class FileServer extends Thread {
 
 					// Read in file to buffer
 					fileStream = new BufferedInputStream(new FileInputStream(requestedFile));
-					byte[] fileBuf = new byte[(int)req.getByteSize()];
+					byte[] fileBuf = new byte[(int) requestedFile.length()];
 					fileStream.read(fileBuf, 0, fileBuf.length);
+
+					// TODO bug if request sent for empty file, hangs
 
 					// Write buffer over socket
 					outputStream = soc.getOutputStream();
 					outputStream.write(fileBuf,0, fileBuf.length);
-				} catch (IOException | ClassNotFoundException e) {
+					outputStream.flush();
 
+					System.out.println("Completed request for " + req.getFilePath());
+
+				} catch (IOException | ClassNotFoundException e) {
+					e.printStackTrace();
 				} finally {
 					if (reqStream != null) reqStream.close();
 					if (fileStream != null) fileStream.close();

@@ -16,6 +16,7 @@ public class testFileServer {
 		// TODO determine permissions
 
 		Partition<String> partition = new Partition<String>(5);
+		partition.setHostName("localhost");
 		partition.openRead();
 		System.out.println(partition.readAllContents());
 		partition.closeRead();

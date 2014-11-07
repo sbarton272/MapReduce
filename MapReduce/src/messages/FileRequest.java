@@ -1,7 +1,10 @@
 package messages;
 
-public class FileRequest {
+import java.io.Serializable;
 
+public class FileRequest implements Serializable {
+
+	private static final long serialVersionUID = 6644202438816724816L;
 	private final String filePath;
 	private final long byteSize;
 

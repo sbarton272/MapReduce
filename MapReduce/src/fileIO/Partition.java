@@ -169,16 +169,18 @@ public class Partition<T> implements Serializable {
 			// Read stream and write to file
 			byte[] bytes = new byte[(int) byteSize];
 			int n;
-			while( (n = inStream.read(bytes, 0, bytes.length)) != -1) {
+			while( (n = inStream.read(bytes, 0, bytes.length)) > -1) {
+				//System.out.println(n);
 				fileOutStream.write(bytes, 0, n);
 			}
+			fileOutStream.flush();
 
 			// Update host machine to this machine as this partition changes the local copy
 			hostName = InetAddress.getLocalHost().getHostName();
 
 		} catch (IOException e) {
 
-			// TODO
+			e.printStackTrace();
 
 		} finally {
 			// Close streams and socket
@@ -327,6 +329,11 @@ public class Partition<T> implements Serializable {
 			}
 		}
 		writer.close();
+	}
+
+	public void setHostName(String hostName) {
+		// TODO remove this
+		this.hostName = hostName;
 	}
 
 }
