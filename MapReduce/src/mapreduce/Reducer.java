@@ -44,10 +44,15 @@ public class Reducer {
 					commonValues.add(keyVal.getVal());
 				} else {
 
-					// New key so reduce old key and save results
-					// TODO null keys and empty commonValues
-					MRKeyVal reduceResult = reduceFn.reduce(curKey, commonValues);
-					partitionWriter.write(reduceResult);
+
+
+					// Do not give reduce null key or empty common values
+					if ((curKey != null) && (!commonValues.isEmpty())) {
+
+						// New key so reduce old key and save results
+						MRKeyVal reduceResult = reduceFn.reduce(curKey, commonValues);
+						partitionWriter.write(reduceResult);
+					}
 
 					// Set new key and reset commonValues
 					curKey = keyVal.getKey();
