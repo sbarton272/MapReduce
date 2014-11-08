@@ -17,9 +17,10 @@ public class testBasics {
 	public static void main(String[] args) {
 
 		int partitionSize = 5;
-		Partition<MRKeyVal> p1 = new Partition<MRKeyVal>(partitionSize);
+		Partition<MRKeyVal> p1 = null;
 
 		try {
+			p1 = new Partition<MRKeyVal>(partitionSize);
 			p1.openWrite();
 			p1.write(new MRKeyVal("foo", 2));
 			p1.write(new MRKeyVal("bar", 2));

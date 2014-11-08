@@ -14,7 +14,17 @@ import messages.FileRequest;
 
 public class FileServer extends Thread {
 
-	public static final int PORT = 9945;
+	public static final int PORT = 13267;
+	public static final String DEFAULT_REMOTE_FILE_DIR = "tmp";
+	private final String remoteFileDir;
+
+	public FileServer(String remoteFileDir) {
+		this.remoteFileDir = remoteFileDir;
+	}
+
+	public FileServer() {
+		this(DEFAULT_REMOTE_FILE_DIR);
+	}
 
 	@Override
 	public void run() {
@@ -29,28 +39,26 @@ public class FileServer extends Thread {
 			// Run indefinitely
 			while(true){
 
+				Socket soc = null;
 				ObjectInputStream reqStream = null;
 				BufferedInputStream fileStream = null;
 				OutputStream outputStream = null;
 				try {
 					// Accept request
-					Socket soc = serverSoc.accept();
+					soc = serverSoc.accept();
+
+					// TODO spawn new thread
 
 					// Decode request
-					reqStream = new ObjectInputStream(
-							soc.getInputStream());
+					reqStream = new ObjectInputStream(soc.getInputStream());
 					FileRequest req = (FileRequest) reqStream.readObject();
 
-					System.out.println("Recieved request for " + req.getFilePath());
+					System.out.println("Recieved request for " + req.getFileName());
 
 					// Find file
-					//File requestedFile = new File(req.getFilePath());
+					File requestedFile = new File(remoteFileDir, req.getFileName());
 
-					// TODO testing
-					File requestedFile = new File("resources/letters.txt");
-
-					// Ensure file in tmp folder
-					// TODO
+					System.out.println("Requested file available " + requestedFile + ":" + requestedFile.length());
 
 					// Ensure length is same as request
 					if (requestedFile.length() != req.getByteSize()) {
@@ -69,14 +77,16 @@ public class FileServer extends Thread {
 					outputStream.write(fileBuf,0, fileBuf.length);
 					outputStream.flush();
 
-					System.out.println("Completed request for " + req.getFilePath());
+					System.out.println("Completed request for " + req.getFileName());
+
 
 				} catch (IOException | ClassNotFoundException e) {
 					e.printStackTrace();
 				} finally {
 					if (reqStream != null) reqStream.close();
 					if (fileStream != null) fileStream.close();
-					if (outputStream != null) outputStream.close();
+					if (soc != null) soc.close();
+					System.out.println("Connection closed");
 				}
 			}
 

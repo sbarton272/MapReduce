@@ -1,6 +1,5 @@
 package fileIO;
 
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -8,52 +7,52 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
-import java.io.Serializable;
 import java.net.InetAddress;
-import java.net.Socket;
-import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import mapreduce.MRKeyVal;
-import messages.FileRequest;
 
-public class Partition<T> implements Serializable {
+public class Partition<T> extends RemoteFile {
 
 	// TODO delete state?
 	// TODO may be able to implement without serializable object stuff
 	// TODO too much code here
 
 	private static final long serialVersionUID = 2184080295517094612L;
-	private static final String TMP_DIR = "tmp";
+	private static final String TMP_DIR = FileServer.DEFAULT_REMOTE_FILE_DIR;
 	private static final String EXT = ".partition";
 	private final int maxSize;
 	private List<T> contents;
 	private final String filePath;
-	private String hostName;
 	private int size = 0;
-	private long byteSize = 0;
 	private boolean writeMode = false;
 	private boolean readMode = false;
 	private int curIndx;
 
-	public Partition(int maxSize) {
-		try {
-			this.hostName = InetAddress.getLocalHost().getHostName();
-		} catch (UnknownHostException e) {
-			System.out.println("Parition unable to determine hostname");
-			e.printStackTrace();
-		}
-		this.maxSize = maxSize;
-		this.filePath = TMP_DIR + File.separator + Integer.toString(this.hashCode()) + EXT;;
+	public Partition(int maxSize) throws IOException {
+		// Generate hostName, this may not work
+		this(maxSize, InetAddress.getLocalHost().getHostName());
+	}
 
-		// TODO Make tmp directory if not present
+	public Partition(int maxSize, String hostName) throws IOException {
+
+		// Generate filename
+		super(TMP_DIR + File.separator + UUID.randomUUID() + EXT, hostName, 0);
+		this.maxSize = maxSize;
+		this.filePath =  this.file.getPath();
+
+		System.out.println("Created partition: " + filePath);
+
+		// Make tmp directory if not present
+		File tmpDir = new File(TMP_DIR);
+		tmpDir.mkdir();
 	}
 
 	//------------------------------------------
@@ -88,18 +87,32 @@ public class Partition<T> implements Serializable {
 		outStream.writeObject(contents);
 		outStream.close();
 
-		// Get number of bytes
-		byteSize = new File(filePath).length();
-
-		// Check that the file size is not too large to send over network
-		if (byteSize > Integer.MAX_VALUE) {
-			// TODO best idea? check elsewhere
-			throw(new IOException("File too large"));
-		}
-
 		writeMode = false;
 
+		// Update file length
+		long len = new File(filePath).length();
+		if (len > Integer.MAX_VALUE) {
+			throw(new IOException("File too large to be remote"));
+		}
+		setFileByteSize((int) len);
+
 	}
+
+	public void write(T val) throws IOException {
+		// Do not write null value
+		if (val == null) {
+			return;
+		}
+
+		if(writeMode && (size < maxSize)){
+			contents.add(val);
+			size++;
+		} else {
+			throw(new IOException("Partition not open or full"));
+		}
+	}
+
+	//------------------------------------------
 
 	public void openRead() throws IOException {
 
@@ -115,7 +128,7 @@ public class Partition<T> implements Serializable {
 		} catch (FileNotFoundException e) {
 
 			// Try loading from remote
-			loadRemoteFile();
+			load();
 			inStream = new ObjectInputStream(
 					new FileInputStream(filePath));
 		}
@@ -140,76 +153,6 @@ public class Partition<T> implements Serializable {
 
 	public void closeRead() {
 		readMode = false;
-	}
-
-	private void loadRemoteFile() throws IOException {
-
-		Socket soc = null;
-		ObjectOutputStream outStream = null;
-		BufferedOutputStream fileOutStream = null;
-		try {
-
-			// Open socket to host machine
-			soc = new Socket(hostName, FileServer.PORT);
-
-			// Generate partition request message
-			FileRequest req = new FileRequest(filePath, byteSize);
-
-			// TODO times out if bad request?
-
-			// Send message
-			outStream = new ObjectOutputStream(
-					soc.getOutputStream());
-			outStream.writeObject(req);
-
-			// Get input and file streams, create file at same filepath
-			InputStream inStream = soc.getInputStream();
-			fileOutStream = new BufferedOutputStream(new FileOutputStream(filePath));
-
-			// Read stream and write to file
-			byte[] bytes = new byte[(int) byteSize];
-			int n;
-			while( (n = inStream.read(bytes, 0, bytes.length)) > -1) {
-				//System.out.println(n);
-				fileOutStream.write(bytes, 0, n);
-			}
-			fileOutStream.flush();
-
-			// Update host machine to this machine as this partition changes the local copy
-			hostName = InetAddress.getLocalHost().getHostName();
-
-		} catch (IOException e) {
-
-			e.printStackTrace();
-
-		} finally {
-			// Close streams and socket
-			if (outStream != null) {
-				outStream.close();
-			}
-			if (fileOutStream != null) {
-				fileOutStream.close();
-			}
-			if (soc != null) {
-				soc.close();
-			}
-		}
-	}
-
-	//------------------------------------------
-
-	public void write(T val) throws IOException {
-		// Do not write null value
-		if (val == null) {
-			return;
-		}
-
-		if(writeMode && (size < maxSize)){
-			contents.add(val);
-			size++;
-		} else {
-			throw(new IOException("Partition not open or full"));
-		}
 	}
 
 	public T read() throws IOException {
@@ -237,6 +180,7 @@ public class Partition<T> implements Serializable {
 		closeRead();
 		return result;
 	}
+
 	//------------------------------------------
 
 	public void delete() {
@@ -253,6 +197,10 @@ public class Partition<T> implements Serializable {
 		return size == maxSize;
 	}
 
+	public boolean isEmpty() {
+		return size == 0;
+	}
+
 	public int getMaxSize() {
 		return maxSize;
 	}
@@ -263,10 +211,6 @@ public class Partition<T> implements Serializable {
 
 	public String getFilePath() {
 		return filePath;
-	}
-
-	public boolean isEmpty() {
-		return size == 0;
 	}
 
 	//------------------------------------------
@@ -329,11 +273,6 @@ public class Partition<T> implements Serializable {
 			}
 		}
 		writer.close();
-	}
-
-	public void setHostName(String hostName) {
-		// TODO remove this
-		this.hostName = hostName;
 	}
 
 }
