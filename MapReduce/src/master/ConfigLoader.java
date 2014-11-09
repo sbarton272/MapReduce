@@ -4,9 +4,10 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.lang.reflect.Method;
+import java.lang.reflect.Constructor;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -32,6 +33,7 @@ public class ConfigLoader {
 	private final String STR_PARTICIPANT = "PARTICIPANT";
 	private final String STR_PARTICIPANT_PORT = "PARTICIPANT_PORT";
 	private final String STR_KEY_DELIM = "=";
+	private final String STR_CLASS_DELIM = ":";
 
 	// Config variables
 	private String jobname = "";
@@ -44,8 +46,8 @@ public class ConfigLoader {
 	private int partitionSize = 64;
 	private String masterHostName = "localhost";
 	private int masterPort = 9042;
-	private List<ParticipantDetails> participants;
-	private HashMap<String,String> userConfig;
+	private final List<ParticipantDetails> participants = new ArrayList<ParticipantDetails>();
+	private final HashMap<String,String> userConfig = new HashMap<String,String>();
 	private ParticipantDetails lastParticipantRecorded;
 
 	public ConfigLoader(String filePath) throws IOException {
@@ -82,8 +84,9 @@ public class ConfigLoader {
 			break;
 		case STR_MAP_FN:
 			try {
-				mapFn = (Map) loadJar(new File(val));
+				mapFn = (Map) loadJar(val);
 			} catch (Exception e) {
+				e.printStackTrace();
 				System.out.println("Loading config: unable to load " + val);
 			}
 			break;
@@ -92,8 +95,9 @@ public class ConfigLoader {
 			break;
 		case STR_REDUCE_FN:
 			try {
-				reduceFn = (Reduce) loadJar(new File(val));
+				reduceFn = (Reduce) loadJar(val);
 			} catch (Exception e) {
+				e.printStackTrace();
 				System.out.println("Loading config: unable to load " + val);
 			}
 			break;
@@ -128,9 +132,36 @@ public class ConfigLoader {
 
 	//------------------------------------
 
-	private Object loadJar(File jar) throws Exception {
+	private Object loadJar(String val) throws Exception {
 		// Used http://cvamshi.wordpress.com/2011/01/12/loading-jars-and-java-classes-dynamically/ to learn about how to do this
 
+		String[] split = val.split(STR_CLASS_DELIM);
+		if (split.length != 2) {
+			System.out.println("Loading jar: unable to parse jar class and location");
+			return null;
+		}
+
+		// Extract results
+		File jar = new File(split[0]);
+		String classStr = split[1];
+
+		// Check that jar exists
+		if (!jar.exists()) {
+			System.out.println("Loading jar: unable to find jar");
+			return null;
+		}
+
+		System.out.println("Loading jar " + jar.getAbsolutePath());
+
+		ClassLoader loader = URLClassLoader.newInstance(
+				new URL[] { jar.toURI().toURL() },
+				getClass().getClassLoader()
+				);
+		Class<?> clazz = Class.forName(classStr, true, loader);
+		Constructor<?> ctor = clazz.getConstructor();
+		Object o = ctor.newInstance();
+
+		/*
 		URL jarURL = new URL("jar","","file:" + jar.getAbsolutePath() + "!/");
 		URLClassLoader sysLoader = (URLClassLoader)ClassLoader.getSystemClassLoader();
 		Class<URLClassLoader> sysClass = URLClassLoader.class;
@@ -138,8 +169,15 @@ public class ConfigLoader {
 		sysMethod.setAccessible(true);
 		sysMethod.invoke(sysLoader, new Object[]{jarURL});
 		URLClassLoader classLoader = URLClassLoader.newInstance(new URL[] {jarURL});
-		Class<?> jarClass = classLoader.loadClass("mapreduce");
-		return jarClass.newInstance();
+
+		// Extract class name from jar file name
+		String className = jar.getName().substring(0, jar.getName().lastIndexOf('.'));
+		className = "";
+		System.out.println("Loading jar with classname " + className);
+
+		Class<?> jarClass = classLoader.loadClass(className);
+		 */
+		return o;
 	}
 
 	//------------------------------------
