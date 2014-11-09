@@ -1,9 +1,7 @@
 package messages;
 import java.io.Serializable;
 import java.util.List;
-
 import mapreduce.MRKeyVal;
-
 import fileIO.Partition;
 
 public abstract class Message implements Serializable {
