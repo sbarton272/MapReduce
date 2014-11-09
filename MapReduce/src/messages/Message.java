@@ -1,14 +1,25 @@
 package messages;
 import java.io.Serializable;
+import java.util.List;
+
+import mapreduce.MRKeyVal;
+
 import fileIO.Partition;
 
 public abstract class Message implements Serializable {
-	private Partition[] partitions;
+	private List<Partition<String>> stringPartitions;
+	private List<Partition<MRKeyVal>> keyValPartitions;
 	private int pid;
 	private String type;
 	
-	public Message(Partition[] parts, int id, String t){
-		partitions = parts;
+	public Message(List<Partition<String>> parts, int id, String t){
+		stringPartitions = parts;
+		pid = id;
+		type = t;
+	}
+	
+	public Message(int id, List<Partition<MRKeyVal>> parts, String t){
+		keyValPartitions = parts;
 		pid = id;
 		type = t;
 	}
@@ -17,8 +28,12 @@ public abstract class Message implements Serializable {
 		return type;
 	}
 	
-	public Partition[] getPartitions(){
-		return partitions;
+	public List<Partition<String>> getStringPartitions(){
+		return stringPartitions;
+	}
+	
+	public List<Partition<MRKeyVal>> getKeyValPartitions(){
+		return keyValPartitions;
 	}
 	
 	public int getPid(){
