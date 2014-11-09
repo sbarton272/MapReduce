@@ -131,6 +131,8 @@ public class testBasics {
 
 class MapLowerCase implements Map {
 
+	private static final long serialVersionUID = 3901767586735410035L;
+
 	@Override
 	public MRKeyVal map(String input) {
 		return new MRKeyVal(input.toLowerCase(), 1);
@@ -139,6 +141,8 @@ class MapLowerCase implements Map {
 }
 
 class ReduceWordCount implements Reduce {
+
+	private static final long serialVersionUID = -377503573774051833L;
 
 	@Override
 	public MRKeyVal reduce(String key, List<Integer> values) {

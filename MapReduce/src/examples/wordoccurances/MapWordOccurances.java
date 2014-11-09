@@ -8,7 +8,9 @@ import mapreduce.Map;
 
 public class MapWordOccurances implements Map {
 
-	private final String word = "the";
+	private static final long serialVersionUID = 7691009690046665508L;
+	private final String word = "Macbeth";
+	// TODO make this loaded as part of config
 
 	@Override
 	public MRKeyVal map(String input) {

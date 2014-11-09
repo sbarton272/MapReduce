@@ -1,6 +1,8 @@
 package mapreduce;
 
-public interface Map {
+import java.io.Serializable;
+
+public interface Map extends Serializable {
 
 	/**
 	 * 

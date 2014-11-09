@@ -7,6 +7,8 @@ import mapreduce.Reduce;
 
 public class ReduceWordOccurances implements Reduce {
 
+	private static final long serialVersionUID = 7097739604546254388L;
+
 	@Override
 	public MRKeyVal reduce(String key, List<Integer> values) {
 
