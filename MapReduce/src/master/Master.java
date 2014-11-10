@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import mapreduce.MRKeyVal;
+import mapreduce.Mapper;
+import mapreduce.Reducer;
 import mergesort.MergeSort;
 import messages.MapAcknowledge;
 import messages.MapCommand;
@@ -31,9 +33,14 @@ public class Master {
 	private static List<Integer> sortDone;
 	private static List<Integer> reduceDone;
 	private static List<Integer> writtenToFile;
+	private static Mapper mapper;
+	private static Reducer reducer;
 
 	public static void main(String[] args) {
 		//TODO config loader
+		//TODO properly define mapper/reducer based on config file!
+		mapper = new Mapper(null);
+		reducer = new Reducer(null);
 		
 		//TODO handle errors/exceptions more cleanly (many are currently just printing stack trace)
 		
@@ -77,20 +84,29 @@ public class Master {
 									Thread startThread = new Thread(new Runnable() {
 										@Override
 										public void run() {
+											System.out.println("Process "+threadPid+": Starting MapReduce...");
 											startMapReduce(threadPid, inFile, outFile);
+											System.out.println("Process "+threadPid+": MapReduce complete! Results written to "+outFile);
 										}
 									});
 									startThread.start();
 									pid++;
 								}
 								else if (args[0].equals("status") && args[1].equals("of")){
-									int statusPid = Integer.valueOf(args[2]);
+									final int statusPid = Integer.valueOf(args[2]);
 									//if invalid pid, tell user to try again
 									if (statusPid >= pid){
 										System.out.println("The PID you entered is invalid. Please try again.");
 									}
 									else{
-										getStatus(statusPid);
+										System.out.println("Process "+statusPid+": Getting status...");
+										Thread statusThread = new Thread(new Runnable() {
+											@Override
+											public void run() {
+												getStatus(statusPid);
+											}
+										});
+										statusThread.start();
 									}
 								}
 								else{
@@ -106,10 +122,12 @@ public class Master {
 										System.out.println("The PID you entered is invalid. Please try again.");
 									}
 									else{
+										System.out.println("Process "+stopPid+" : Stopping MapReduce...");
 										Thread stopThread = new Thread(new Runnable() {
 											@Override
 											public void run() {
 												stopMapReduce(stopPid);
+												System.out.println("Process "+stopPid+" : MapReduce stopped successfully.");
 											}
 										});
 										stopThread.start();
@@ -148,7 +166,7 @@ public class Master {
 				Thread mapComThread = new Thread(new Runnable() {
 					@Override
 					public void run() {
-						MapCommand mapCom = new MapCommand(parts, pid);
+						MapCommand mapCom = new MapCommand(parts, pid, mapper);
 						try {
 							connection.getOutputStream().writeObject(mapCom);
 							// TODO handle timeout for acknowledge/done!
@@ -199,7 +217,7 @@ public class Master {
 				Thread reduceComThread = new Thread(new Runnable() {
 					@Override
 					public void run() {
-						ReduceCommand reduceCom = new ReduceCommand(parts, pid);
+						ReduceCommand reduceCom = new ReduceCommand(parts, pid, reducer);
 						try {
 							connection.getOutputStream().writeObject(reduceCom);
 							// TODO handle timeout for acknowledge/done!
@@ -243,7 +261,7 @@ public class Master {
 			//Perform final reduce, send to good connection
 			List<Partition<MRKeyVal>> parts = new ArrayList<Partition<MRKeyVal>>();
 			parts.add(reducedPart);
-			ReduceCommand reduceCom = new ReduceCommand(parts, pid);
+			ReduceCommand reduceCom = new ReduceCommand(parts, pid, reducer);
 			Connection connection = connections.get(0);
 			try {
 				connection.getOutputStream().writeObject(reduceCom);
