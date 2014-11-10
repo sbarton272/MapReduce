@@ -83,6 +83,7 @@ public class ConfigLoader {
 			outputFile = new File(val);
 			break;
 		case STR_MAP_FN:
+			// TODO just parse strings, move jar loader to remote jar file type (master does not need these objects)
 			try {
 				mapFn = (Map) loadJar(val);
 			} catch (Exception e) {
@@ -161,22 +162,6 @@ public class ConfigLoader {
 		Constructor<?> ctor = clazz.getConstructor();
 		Object o = ctor.newInstance();
 
-		/*
-		URL jarURL = new URL("jar","","file:" + jar.getAbsolutePath() + "!/");
-		URLClassLoader sysLoader = (URLClassLoader)ClassLoader.getSystemClassLoader();
-		Class<URLClassLoader> sysClass = URLClassLoader.class;
-		Method sysMethod = sysClass.getDeclaredMethod("addURL",new Class[] {URL.class});
-		sysMethod.setAccessible(true);
-		sysMethod.invoke(sysLoader, new Object[]{jarURL});
-		URLClassLoader classLoader = URLClassLoader.newInstance(new URL[] {jarURL});
-
-		// Extract class name from jar file name
-		String className = jar.getName().substring(0, jar.getName().lastIndexOf('.'));
-		className = "";
-		System.out.println("Loading jar with classname " + className);
-
-		Class<?> jarClass = classLoader.loadClass(className);
-		 */
 		return o;
 	}
 
