@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+
 import mapreduce.MRKeyVal;
 import mapreduce.Mapper;
 import mapreduce.Reducer;
@@ -41,9 +42,9 @@ public class Master {
 		//TODO properly define mapper/reducer based on config file!
 		mapper = new Mapper(null);
 		reducer = new Reducer(null);
-		
+
 		//TODO handle errors/exceptions more cleanly (many are currently just printing stack trace)
-		
+
 		participants = new HashMap<String, Integer>();
 		numPartsByPid = new HashMap<Integer, Integer>();
 		partsDoneByPid = new HashMap<Integer, Integer>();
@@ -52,7 +53,7 @@ public class Master {
 		sortDone = new ArrayList<Integer>();
 		reduceDone = new ArrayList<Integer>();
 		writtenToFile = new ArrayList<Integer>();
-		
+
 		//constantly accept commands from the command line
 		final Scanner scanner = new Scanner(System.in);
 		Thread commandThread = new Thread(new Runnable() {
@@ -69,9 +70,9 @@ public class Master {
 							//"start infile outfile"
 							//"stop pid"
 							//"status of pid"
-							
+
 							int pid = 1;
-							
+
 							//if it's a start command, start mapreduce
 							String[] args = command.split("\\s+");
 							if (args.length == 3){
@@ -150,7 +151,7 @@ public class Master {
 		});
 		commandThread.start();
 	}
-	
+
 	public static List<Partition<MRKeyVal>> coordinateMap(final int pid, int partitionSize, List<Connection> connections, String infile){
 		final List<Partition<MRKeyVal>> mappedParts = new ArrayList<Partition<MRKeyVal>>();
 		final List<Thread> threads = new ArrayList<Thread>();
@@ -200,12 +201,12 @@ public class Master {
 		connections = new ArrayList<Connection>();
 		return mappedParts;
 	}
-	
+
 	public static List<Partition<MRKeyVal>> coordinateReduce(final int pid, List<Partition<MRKeyVal>> partitions, List<Connection> connections){
 		try {
 			final Partition<MRKeyVal> reducedPart = new Partition<MRKeyVal>(partitions.size());
 			final List<Thread> threads = new ArrayList<Thread>();
-			//TODO double check that #partitions <= #connections
+			//TODO double check that #partitions <= #connections, number of partitions will likely be greater - Spencer
 			for(int i = 0; i < connections.size(); i++){
 				final Connection connection = connections.get(i);
 				final List<Partition<MRKeyVal>> parts = new ArrayList<Partition<MRKeyVal>>();
@@ -278,7 +279,7 @@ public class Master {
 		}
 		return null;
 	}
-	
+
 	public static List<Connection> connectToParticipants(){
 		List<Connection> connections = new ArrayList<Connection>();
 		for(String host : participants.keySet()){
@@ -294,7 +295,7 @@ public class Master {
 		}
 		return connections;
 	}
-	
+
 	public static void startMapReduce(int pid, String infile, String outfile){
 		//count lines in input file
 		LineNumberReader lnr;
@@ -314,16 +315,16 @@ public class Master {
 			if (numInputs % connections.size() > 0){
 				partitionSize++;
 			}
-			
+
 			//map
 			List<Partition<MRKeyVal>> mappedParts = coordinateMap(pid, partitionSize, connections, infile);
 			mapDone.add(pid);
 			connectionsByPid.remove(pid);
-			
+
 			//sort
 			List<Partition<MRKeyVal>> sortedParts = MergeSort.sort(mappedParts);
 			sortDone.add(pid);
-			
+
 			//reconnect to participants
 			connections = connectToParticipants();
 			connectionsByPid.put(pid, connections);
@@ -338,9 +339,9 @@ public class Master {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		
+
 	}
-	
+
 	public static void stopMapReduce(final int pid){
 		List<Thread> threads = new ArrayList<Thread>();
 		int attempt = 0;
@@ -358,6 +359,7 @@ public class Master {
 				List<Connection> connections = connectionsByPid.get(pid);
 				for (final Connection connection : connections){
 					Thread stopThread = new Thread(new Runnable() {
+						@Override
 						public void run() {
 							StopCommand stopCom = new StopCommand(pid);
 							try {
@@ -398,7 +400,7 @@ public class Master {
 			System.out.println("A problem occurred; process "+pid+" could not be stopped.");
 		}
 	}
-	
+
 	public static void getStatus(int pid){
 		//print out what is currently known about the specified process' status
 		if(numPartsByPid.containsKey(pid)){

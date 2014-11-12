@@ -20,6 +20,7 @@ public class Reducer {
 	}
 
 	public List<Partition<MRKeyVal>> reduce(List<Partition<MRKeyVal>> oldPartitions, int partitionSize) throws IOException {
+		// TODO support n reducers with n output files
 
 		// Start partitionWriter to write reduced values
 		PartitionWriter<MRKeyVal> partitionWriter = new PartitionWriter<MRKeyVal>(partitionSize);

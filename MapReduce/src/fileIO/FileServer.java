@@ -15,7 +15,7 @@ import messages.FileRequest;
 public class FileServer extends Thread {
 
 	public static final int PORT = 13267;
-	public static final String DEFAULT_REMOTE_FILE_DIR = "tmp";
+	public static final String DEFAULT_REMOTE_FILE_DIR = "/tmp";
 	private final String remoteFileDir;
 
 	public FileServer(String remoteFileDir) {
@@ -28,7 +28,6 @@ public class FileServer extends Thread {
 
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
 
 		ServerSocket serverSoc = null;
 		try {
