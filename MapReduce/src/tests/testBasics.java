@@ -28,6 +28,7 @@ public class testBasics {
 			p1.closeWrite();
 		}catch (Exception e) {
 			System.out.println("Ooops");
+			e.printStackTrace();
 		}
 
 		try {
@@ -42,6 +43,7 @@ public class testBasics {
 
 		}catch (Exception e) {
 			System.out.println("Ooops");
+			e.printStackTrace();
 		}
 
 		// Test sorting
@@ -71,6 +73,7 @@ public class testBasics {
 			p5.delete();
 		} catch (IOException e) {
 			System.out.println("Ooops");
+			e.printStackTrace();
 		}
 
 		try {
@@ -115,6 +118,7 @@ public class testBasics {
 
 		} catch (IOException e) {
 			System.out.println("Ooops");
+			e.printStackTrace();
 		}
 
 		// TODO test null values and other edge cases
