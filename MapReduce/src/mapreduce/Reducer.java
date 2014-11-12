@@ -45,8 +45,6 @@ public class Reducer {
 					commonValues.add(keyVal.getVal());
 				} else {
 
-
-
 					// Do not give reduce null key or empty common values
 					if ((curKey != null) && (!commonValues.isEmpty())) {
 

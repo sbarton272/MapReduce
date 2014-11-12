@@ -1,7 +1,5 @@
 package master;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.LineNumberReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
@@ -26,6 +24,14 @@ import messages.StopDone;
 import fileIO.Partition;
 
 public class Master {
+
+	private static final String HELP_MSG = "Valid commands are:" +
+			"start <configFile>\n" +
+			"stop <pid>\n" +
+			"status <pid>\n";
+
+	private static final String DEFAULT_OUTPUT_DELIM = "-";
+
 	private static Map<String, Integer> participants;
 	private static Map<Integer, Integer> numPartsByPid;
 	private static Map<Integer, Integer> partsDoneByPid;
@@ -60,88 +66,80 @@ public class Master {
 			@Override
 			public void run() {
 				while (true) {
-					System.out.println("Enter a command");
+					System.out.println("Enter a command: ");
 					final String command = scanner.nextLine();
+
 					//handle a given command
 					Thread handleThread = new Thread(new Runnable() {
 						@Override
 						public void run() {
-							//valid commands are:
-							//"start infile outfile"
-							//"stop pid"
-							//"status of pid"
 
 							int pid = 1;
 
 							//if it's a start command, start mapreduce
 							String[] args = command.split("\\s+");
-							if (args.length == 3){
-								if (args[0].equals("start")){
-									final String inFile = args[1];
-									final String outFile = args[2];
-									//TODO check validity of files
+							if ((args.length == 2) && args[0].equals("start")){
+
+
+								try {
+									// Load specified configurations
+									final ConfigLoader configLoader = new ConfigLoader(args[1]);
+
 									System.out.println("The PID for this MapReduce process is: "+pid);
+
 									final int threadPid = pid;
 									Thread startThread = new Thread(new Runnable() {
 										@Override
 										public void run() {
-											System.out.println("Process "+threadPid+": Starting MapReduce...");
-											startMapReduce(threadPid, inFile, outFile);
-											System.out.println("Process "+threadPid+": MapReduce complete! Results written to "+outFile);
+											System.out.println("Process "+threadPid+": Starting MapReduce with input file "+configLoader.getInputFile());
+											startMapReduce(threadPid, configLoader);
+											System.out.println("Process "+threadPid+": MapReduce complete! Results written to "+configLoader.getOutputFile());
 										}
 									});
 									startThread.start();
 									pid++;
+
+								} catch (IOException e) {
+									System.out.println("Invalid configurations");
 								}
-								else if (args[0].equals("status") && args[1].equals("of")){
-									final int statusPid = Integer.valueOf(args[2]);
-									//if invalid pid, tell user to try again
-									if (statusPid >= pid){
-										System.out.println("The PID you entered is invalid. Please try again.");
-									}
-									else{
-										System.out.println("Process "+statusPid+": Getting status...");
-										Thread statusThread = new Thread(new Runnable() {
-											@Override
-											public void run() {
-												getStatus(statusPid);
-											}
-										});
-										statusThread.start();
-									}
+
+							} else if ((args.length == 2) && args[0].equals("status")){
+								final int statusPid = Integer.valueOf(args[2]);
+								//if invalid pid, tell user to try again
+								if (statusPid >= pid){
+									System.out.println("The PID you entered is invalid. Please try again.");
 								}
 								else{
-									//invalid command
-									System.out.println("The command you entered is not recognized. Please try again.");
+									System.out.println("Process "+statusPid+": Getting status...");
+									Thread statusThread = new Thread(new Runnable() {
+										@Override
+										public void run() {
+											getStatus(statusPid);
+										}
+									});
+									statusThread.start();
 								}
-							}
-							else if (args.length == 2){
-								if (args[0].equals("stop")){
-									final int stopPid = Integer.valueOf(args[1]);
-									//if invalid pid, tell user to try again
-									if (stopPid >= pid){
-										System.out.println("The PID you entered is invalid. Please try again.");
-									}
-									else{
-										System.out.println("Process "+stopPid+" : Stopping MapReduce...");
-										Thread stopThread = new Thread(new Runnable() {
-											@Override
-											public void run() {
-												stopMapReduce(stopPid);
-												System.out.println("Process "+stopPid+" : MapReduce stopped successfully.");
-											}
-										});
-										stopThread.start();
-									}
+							} else if ((args.length == 2) && args[0].equals("stop")) {
+								final int stopPid = Integer.valueOf(args[1]);
+								//if invalid pid, tell user to try again
+								if (stopPid >= pid){
+									System.out.println("The PID you entered is invalid. Please try again.");
 								}
 								else{
-									//invalid command
-									System.out.println("The command you entered is not recognized. Please try again.");
+									System.out.println("Process "+stopPid+" : Stopping MapReduce...");
+									Thread stopThread = new Thread(new Runnable() {
+										@Override
+										public void run() {
+											stopMapReduce(stopPid);
+											System.out.println("Process "+stopPid+" : MapReduce stopped successfully.");
+										}
+									});
+									stopThread.start();
 								}
 							}
 							else{
 								//invalid command
-								System.out.println("The command you entered is not recognized. Please try again.");
+								System.out.println(HELP_MSG);
 							}
 						}
 					});
@@ -296,28 +294,17 @@ public class Master {
 		return connections;
 	}
 
-	public static void startMapReduce(int pid, String infile, String outfile){
-		//count lines in input file
-		LineNumberReader lnr;
+	public static void startMapReduce(int pid, ConfigLoader configLoader){
 		try {
 			//connect to participants
 			List<Connection> connections = connectToParticipants();
 			connectionsByPid.put(pid, connections);
-			//count lines in file to get number of inputs
-			lnr = new LineNumberReader(new FileReader(infile));
-			lnr.skip(Long.MAX_VALUE);
-			int numInputs = lnr.getLineNumber();
-			lnr.close();
+
 			numPartsByPid.put(pid, connections.size());
 			partsDoneByPid.put(pid, 0);
-			//divide inputs between connections to get maximum partition size
-			int partitionSize = numInputs / connections.size();
-			if (numInputs % connections.size() > 0){
-				partitionSize++;
-			}
 
 			//map
-			List<Partition<MRKeyVal>> mappedParts = coordinateMap(pid, partitionSize, connections, infile);
+			List<Partition<MRKeyVal>> mappedParts = coordinateMap(pid, configLoader.getPartitionSize(), connections, configLoader.getInputFile().getPath());
 			mapDone.add(pid);
 			connectionsByPid.remove(pid);
 
@@ -330,12 +317,15 @@ public class Master {
 			connectionsByPid.put(pid, connections);
 			numPartsByPid.put(pid, connections.size());
 			partsDoneByPid.put(pid, 0);
+
 			//reduce
 			List<Partition<MRKeyVal>> reduced = coordinateReduce(pid, sortedParts, connections);
 			reduceDone.add(pid);
+
 			//write to output file
-			Partition.partitionsToFile(reduced, outfile, "-");
+			Partition.partitionsToFile(reduced, configLoader.getOutputFile().getPath(), DEFAULT_OUTPUT_DELIM);
 			writtenToFile.add(pid);
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

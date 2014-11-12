@@ -16,9 +16,6 @@ import mapreduce.Reduce;
 
 public class ConfigLoader {
 
-	// Consts
-	private static final int DEFAULT_PARTICIPANT_PORT = 5454;
-
 	// Parse strings
 	private final String STR_JOB_NAME = "JOB_NAME";
 	private final String STR_INPUT_FILE = "INPUT_FILE";
