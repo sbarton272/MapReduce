@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.List;
 
 import mapreduce.MRKeyVal;
+import fileIO.KeyPartition;
 import fileIO.KeyPartitionWriter;
 import fileIO.Partition;
 
@@ -16,7 +17,7 @@ import fileIO.Partition;
  */
 public class MergeSort {
 
-	public static List<Partition<MRKeyVal>> sort(List<Partition<MRKeyVal>> unsortedPartitions, int partitionSize) {
+	public static List<List<KeyPartition>> sort(List<Partition<MRKeyVal>> unsortedPartitions, int partitionSize) {
 
 		// Sort individual partitions
 		List<Partition<MRKeyVal>> newPartitions = new ArrayList<Partition<MRKeyVal>>();
@@ -29,7 +30,7 @@ public class MergeSort {
 		}
 
 		// Merge partitions into new partitions
-		List<Partition<MRKeyVal>> sortedPartitions = mergePartitions(newPartitions, partitionSize);
+		List<List<KeyPartition>> sortedPartitions = mergePartitions(newPartitions, partitionSize);
 
 		// Remove all old individually sorted partitions
 		for (Partition<MRKeyVal> partition : newPartitions) {
@@ -75,9 +76,9 @@ public class MergeSort {
 	 * Merge all partitions together at once
 	 * Merge into a new partition until full and then create the next partition
 	 */
-	private static List<Partition<MRKeyVal>> mergePartitions(List<Partition<MRKeyVal>> partitions, int newPartitionSize) {
+	private static List<List<KeyPartition>> mergePartitions(List<Partition<MRKeyVal>> partitions, int newPartitionSize) {
 
-		List<Partition<MRKeyVal>> sortedPartitions = new ArrayList<Partition<MRKeyVal>>();
+		List<List<KeyPartition>> sortedPartitions = new ArrayList<List<KeyPartition>>();
 		try {
 
 			// Continue merging until all partitions are merged

@@ -216,6 +216,7 @@ public class Master {
 				}
 
 				// Split partitions among participants
+				// TODO THIS IS WHERE I LEFT OFF
 
 				// TODO split by key
 				final List<Partition<MRKeyVal>> parts = new ArrayList<Partition<MRKeyVal>>();

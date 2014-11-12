@@ -215,6 +215,11 @@ public class Partition<T> extends RemoteFile {
 		return filePath;
 	}
 
+	@Override
+	public String toString() {
+		return filePath;
+	}
+
 	//------------------------------------------
 
 	public static Partition<MRKeyVal> newFromKVList(List<MRKeyVal> values, int maxSize) throws IOException {
@@ -237,7 +242,6 @@ public class Partition<T> extends RemoteFile {
 	 * @throws IOException
 	 */
 	public static List<Partition<String>> fileToPartitions(String filepath, int partitionSize) throws IOException {
-		// TODO remove from partition
 
 		// Open file
 		BufferedReader reader = new BufferedReader(new FileReader(filepath));
@@ -277,9 +281,17 @@ public class Partition<T> extends RemoteFile {
 		writer.close();
 	}
 
-	public static <T> void deleteAll(List<Partition<T>> reduced) {
-		for (Partition<T> p : reduced) {
+	//----------------------------------------------------------
+
+	public static <T> void deleteAll(List<Partition<T>> partitions) {
+		for (Partition<T> p : partitions) {
 			p.delete();
+		}
+	}
+
+	public static <T> void loadAll(List<Partition<T>> partitions) throws IOException {
+		for (Partition<T> p : partitions) {
+			p.load();
 		}
 	}
 

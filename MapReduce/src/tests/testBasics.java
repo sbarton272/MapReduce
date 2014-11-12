@@ -6,10 +6,9 @@ import java.util.List;
 
 import mapreduce.MRKeyVal;
 import mapreduce.Map;
-import mapreduce.Mapper;
 import mapreduce.Reduce;
-import mapreduce.Reducer;
 import mergesort.MergeSort;
+import fileIO.KeyPartition;
 import fileIO.Partition;
 
 public class testBasics {
@@ -61,7 +60,7 @@ public class testBasics {
 			partitions.add(p2);
 			partitions.add(p3);
 
-			List<Partition<MRKeyVal>> sorted = MergeSort.sort(partitions, partitionSize);
+			List<Partition<MRKeyVal>> sorted = flatten(MergeSort.sort(partitions, partitionSize));
 
 			// Print results
 			Partition<MRKeyVal> p4 = sorted.get(0);
@@ -71,12 +70,21 @@ public class testBasics {
 			Partition<MRKeyVal> p5 = sorted.get(1);
 			System.out.println(p5.readAllContents());
 			p5.delete();
+
+			Partition<MRKeyVal> p6 = sorted.get(2);
+			System.out.println(p6.readAllContents());
+			p6.delete();
+
+			Partition<MRKeyVal> p7 = sorted.get(3);
+			System.out.println(p7.readAllContents());
+			p7.delete();
+
 		} catch (IOException e) {
 			System.out.println("Ooops");
 			e.printStackTrace();
 		}
 
-		try {
+		/*		try {
 
 			// Load input file
 			List<Partition<String>> input = Partition.fileToPartitions("resources/letters.txt", partitionSize);
@@ -91,7 +99,7 @@ public class testBasics {
 			printAllPartitions(mapped);
 
 			// Test sort
-			List<Partition<MRKeyVal>> sorted = MergeSort.sort(mapped, partitionSize);
+			List<Partition<MRKeyVal>> sorted = flatten(MergeSort.sort(mapped, partitionSize));
 			printAllPartitions(sorted);
 
 			// Test reduce
@@ -119,7 +127,7 @@ public class testBasics {
 		} catch (IOException e) {
 			System.out.println("Ooops");
 			e.printStackTrace();
-		}
+		}*/
 
 		// TODO test null values and other edge cases
 
@@ -130,6 +138,14 @@ public class testBasics {
 			System.out.print(p.readAllContents());
 		}
 		System.out.println();
+	}
+
+	private static List<Partition<MRKeyVal>> flatten(List<List<KeyPartition>> list2) {
+		List<Partition<MRKeyVal>> list = new ArrayList<Partition<MRKeyVal>>();
+		for (List<KeyPartition> l : list2) {
+			list.addAll(l);
+		}
+		return list;
 	}
 }
 
