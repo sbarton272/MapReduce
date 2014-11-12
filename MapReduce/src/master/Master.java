@@ -216,7 +216,8 @@ public class Master {
 				}
 
 				// Split partitions among participants
-				// TODO THIS IS WHERE I LEFT OFF
+				// TODO THIS IS WHERE I LEFT OFF: Note that the reduce step now returns a sorted list of lists. The lists are organized by common key.
+				//  The reduce operation should ensure that all of one key type partitions are sent to the same participant
 
 				// TODO split by key
 				final List<Partition<MRKeyVal>> parts = new ArrayList<Partition<MRKeyVal>>();
@@ -309,6 +310,8 @@ public class Master {
 			connectionsByPid.remove(pid);
 
 			//sort
+
+			// TODO the return type changed
 			List<Partition<MRKeyVal>> sortedParts = MergeSort.sort(mappedParts, configLoader.getPartitionSize());
 			sortDone.add(pid);
 
