@@ -29,11 +29,9 @@ public class ConfigLoader {
 	private final String STR_REDUCE_TIMEOUT_SEC = "REDUCE_TIMEOUT_SEC";
 	private final String STR_PARITION_SIZE = "PARITION_SIZE";
 	private final String STR_MASTER = "MASTER";
-	private final String STR_MASTER_PORT = "MASTER_PORT";
 	private final String STR_PARTICIPANT = "PARTICIPANT";
-	private final String STR_PARTICIPANT_PORT = "PARTICIPANT_PORT";
 	private final String STR_KEY_DELIM = "=";
-	private final String STR_CLASS_DELIM = ":";
+	private final String STR_DELIM = ":";
 
 	// Config variables
 	private String jobname = "";
@@ -66,6 +64,7 @@ public class ConfigLoader {
 	}
 
 	private void setKeyVal(String key, String val) throws IOException {
+		String[] hostPort;
 
 		switch(key) {
 		case STR_JOB_NAME:
@@ -109,19 +108,14 @@ public class ConfigLoader {
 			partitionSize = Integer.parseInt(val);
 			break;
 		case STR_MASTER:
-			masterHostName = val;
-			break;
-		case STR_MASTER_PORT:
-			masterPort = Integer.parseInt(val);
+			hostPort = splitHostPort(val);
+			masterHostName = hostPort[0];
+			masterPort = Integer.parseInt(hostPort[1]);
 			break;
 		case STR_PARTICIPANT:
-			lastParticipantRecorded = new ParticipantDetails(val, DEFAULT_PARTICIPANT_PORT);
+			hostPort = splitHostPort(val);
+			lastParticipantRecorded = new ParticipantDetails(hostPort[0], hostPort[1]);
 			participants.add(lastParticipantRecorded);
-			break;
-		case STR_PARTICIPANT_PORT:
-			if (lastParticipantRecorded != null) {
-				lastParticipantRecorded.setPort(Integer.parseInt(val));
-			}
 			break;
 		default:
 			// Store all unrecognized keys to a list of KV pairs
@@ -133,10 +127,19 @@ public class ConfigLoader {
 
 	//------------------------------------
 
+	private String[] splitHostPort(String val) {
+		String[] split = val.split(STR_DELIM);
+		if (split.length != 2) {
+			System.out.println("Loading jar: unable to parse jar class and location");
+			return null;
+		}
+		return split;
+	}
+
 	private Object loadJar(String val) throws Exception {
 		// Used http://cvamshi.wordpress.com/2011/01/12/loading-jars-and-java-classes-dynamically/ to learn about how to do this
 
-		String[] split = val.split(STR_CLASS_DELIM);
+		String[] split = val.split(STR_DELIM);
 		if (split.length != 2) {
 			System.out.println("Loading jar: unable to parse jar class and location");
 			return null;

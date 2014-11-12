@@ -10,6 +10,10 @@ public class ParticipantDetails {
 		this.port = port;
 	}
 
+	public ParticipantDetails(String hostName, String port) {
+		this(hostName, Integer.parseInt(port));
+	}
+
 	public int getPort() {
 		return port;
 	}
