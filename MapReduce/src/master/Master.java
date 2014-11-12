@@ -25,7 +25,7 @@ import fileIO.Partition;
 
 public class Master {
 
-	private static final String HELP_MSG = "Valid commands are:" +
+	private static final String HELP_MSG = "Valid commands are:\n" +
 			"start <configFile>\n" +
 			"stop <pid>\n" +
 			"status <pid>\n";

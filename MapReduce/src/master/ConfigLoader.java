@@ -81,7 +81,7 @@ public class ConfigLoader {
 		case STR_MAP_FN:
 			// TODO just parse strings, move jar loader to remote jar file type (master does not need these objects)
 			try {
-				mapFn = (Map) loadJar(val);
+				mapFn = (Map) loadClass(val);
 			} catch (Exception e) {
 				e.printStackTrace();
 				System.out.println("Loading config: unable to load " + val);
@@ -92,7 +92,7 @@ public class ConfigLoader {
 			break;
 		case STR_REDUCE_FN:
 			try {
-				reduceFn = (Reduce) loadJar(val);
+				reduceFn = (Reduce) loadClass(val);
 			} catch (Exception e) {
 				e.printStackTrace();
 				System.out.println("Loading config: unable to load " + val);
@@ -131,6 +131,12 @@ public class ConfigLoader {
 			return null;
 		}
 		return split;
+	}
+
+	private Object loadClass(String val) throws Exception {
+		Class<?> c = Class.forName(val);
+		Constructor<?> ctor = c.getConstructor();
+		return ctor.newInstance();
 	}
 
 	private Object loadJar(String val) throws Exception {
