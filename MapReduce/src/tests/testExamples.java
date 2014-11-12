@@ -1,8 +1,14 @@
 package tests;
 
 import java.io.IOException;
+import java.util.List;
 
+import mapreduce.MRKeyVal;
+import mapreduce.Mapper;
+import mapreduce.Reducer;
 import master.ConfigLoader;
+import mergesort.MergeSort;
+import fileIO.Partition;
 
 public class testExamples {
 
@@ -14,7 +20,17 @@ public class testExamples {
 			config = new ConfigLoader("examples/wordcount/wordcount.config");
 			System.out.println(config.getJobname());
 
-			// TODO test map and reduce functionality
+			// Perform operation
+			List<Partition<String>> input = Partition.fileToPartitions(config.getInputFile().getPath(), config.getPartitionSize());
+			Mapper mapper = new Mapper(config.getMapFn());
+			List<Partition<MRKeyVal>> mapped = mapper.map(input, config.getPartitionSize());
+			List<Partition<MRKeyVal>> sorted = MergeSort.sort(mapped, config.getPartitionSize());
+			Reducer reducer = new Reducer(config.getReduceFn());
+			List<Partition<MRKeyVal>> reduced = reducer.reduce(sorted, config.getPartitionSize());
+			Partition.partitionsToFile(reduced, config.getOutputFile().getPath(), "-");
+
+			Partition.deleteAll(reduced);
+
 		} catch (IOException e) {
 			System.out.println("Unable to load config");
 		}
@@ -24,7 +40,21 @@ public class testExamples {
 			config = new ConfigLoader("examples/wordoccurences/wordoccurences.config");
 			System.out.println(config.getJobname());
 
-			// TODO test map and reduce functionality
+			// Perform operation
+			List<Partition<String>> input = Partition.fileToPartitions(config.getInputFile().getPath(), config.getPartitionSize());
+			Mapper mapper = new Mapper(config.getMapFn());
+			List<Partition<MRKeyVal>> mapped = mapper.map(input, config.getPartitionSize());
+			List<Partition<MRKeyVal>> sorted = MergeSort.sort(mapped, config.getPartitionSize());
+			Reducer reducer = new Reducer(config.getReduceFn());
+			List<Partition<MRKeyVal>> reduced = reducer.reduce(sorted, config.getPartitionSize());
+			Partition.partitionsToFile(reduced, config.getOutputFile().getPath(), "-");
+
+			List<Partition<String>> check = Partition.fileToPartitions(config.getOutputFile().getPath(), 5);
+			System.out.println(check.get(0));
+
+			Partition.deleteAll(check);
+			Partition.deleteAll(reduced);
+
 		} catch (IOException e) {
 			System.out.println("Unable to load config");
 		}

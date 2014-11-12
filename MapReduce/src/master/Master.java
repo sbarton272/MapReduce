@@ -204,15 +204,24 @@ public class Master {
 		try {
 			final Partition<MRKeyVal> reducedPart = new Partition<MRKeyVal>(partitions.size());
 			final List<Thread> threads = new ArrayList<Thread>();
-			//TODO double check that #partitions <= #connections, number of partitions will likely be greater - Spencer
+
+			// Iterate through all available participants
 			for(int i = 0; i < connections.size(); i++){
 				final Connection connection = connections.get(i);
-				final List<Partition<MRKeyVal>> parts = new ArrayList<Partition<MRKeyVal>>();
+
+				// If out of partitions do not pass any more out
 				if(i >= partitions.size()){
-					i = connections.size();
+					i = connections.size(); // TODO why?
 					break;
 				}
+
+				// Split partitions among participants
+
+				// TODO split by key
+				final List<Partition<MRKeyVal>> parts = new ArrayList<Partition<MRKeyVal>>();
 				parts.add(partitions.get(i));
+
+				// Send reduce command thread
 				Thread reduceComThread = new Thread(new Runnable() {
 					@Override
 					public void run() {
@@ -222,21 +231,11 @@ public class Master {
 							// TODO handle timeout for acknowledge/done!
 							ReduceAcknowledge reduceAck = (ReduceAcknowledge)connection.getInputStream().readObject();
 							ReduceDone reduceDone = (ReduceDone)connection.getInputStream().readObject();
-							reducedPart.openWrite();
-							Partition<MRKeyVal> reduced = reduceDone.getKeyValPartitions().get(0);
-							reduced.openRead();
-							boolean moreToRead = true;
-							while (moreToRead){
-								MRKeyVal keyVal = reduced.read();
-								if (keyVal.equals(null)){
-									reduced.closeRead();
-									moreToRead = false;
-								}
-								else{
-									reducedPart.write(keyVal);
-								}
-							}
-							reducedPart.closeWrite();
+
+							// Extract partitions and load all
+							reduceDone.getKeyValPartitions();
+							// TODO reducedPart
+
 							if(!reduceDone.succeeded()){
 								// TODO handle failure of a reducer
 							}
@@ -309,7 +308,7 @@ public class Master {
 			connectionsByPid.remove(pid);
 
 			//sort
-			List<Partition<MRKeyVal>> sortedParts = MergeSort.sort(mappedParts);
+			List<Partition<MRKeyVal>> sortedParts = MergeSort.sort(mappedParts, configLoader.getPartitionSize());
 			sortDone.add(pid);
 
 			//reconnect to participants

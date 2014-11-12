@@ -48,8 +48,6 @@ public class Partition<T> extends RemoteFile {
 		this.maxSize = maxSize;
 		this.filePath =  this.file.getPath();
 
-		System.out.println("Created partition: " + filePath);
-
 		// Make tmp directory if not present
 		File tmpDir = new File(TMP_DIR);
 		tmpDir.mkdir();
@@ -79,6 +77,11 @@ public class Partition<T> extends RemoteFile {
 
 	public void closeWrite() throws IOException {
 
+		// Do nothing if file empty
+		if (contents.size() <= 0) {
+			return;
+		}
+
 		// Open file to write
 		ObjectOutputStream outStream = new ObjectOutputStream(
 				new FileOutputStream(filePath));
@@ -94,7 +97,6 @@ public class Partition<T> extends RemoteFile {
 		if (len > Integer.MAX_VALUE) {
 			throw(new IOException("File too large to be remote"));
 		}
-		setFileByteSize((int) len);
 
 	}
 
@@ -273,6 +275,12 @@ public class Partition<T> extends RemoteFile {
 			}
 		}
 		writer.close();
+	}
+
+	public static <T> void deleteAll(List<Partition<T>> reduced) {
+		for (Partition<T> p : reduced) {
+			p.delete();
+		}
 	}
 
 }

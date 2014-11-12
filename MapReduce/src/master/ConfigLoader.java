@@ -139,6 +139,7 @@ public class ConfigLoader {
 		return ctor.newInstance();
 	}
 
+	@SuppressWarnings("unused") // TODO do we need this?
 	private Object loadJar(String val) throws Exception {
 		// Used http://cvamshi.wordpress.com/2011/01/12/loading-jars-and-java-classes-dynamically/ to learn about how to do this
 

@@ -13,10 +13,10 @@ import java.util.List;
  */
 public class PartitionWriter<T> {
 
-	private final int partitionSize;
-	private boolean writeMode = false;
-	private ArrayList<Partition<T>> partitions;
-	private Partition<T> curPartition;
+	protected final int partitionSize;
+	protected boolean writeMode = false;
+	protected ArrayList<Partition<T>> partitions;
+	protected Partition<T> curPartition;
 
 	public PartitionWriter(int partitionSize) {
 		this.partitionSize = partitionSize;
@@ -61,7 +61,7 @@ public class PartitionWriter<T> {
 		// If curPartition full, store and create a new partition
 		if (curPartition.isFull()) {
 
-			// Close current partition for writing
+			// Close current partition for writing, nothing written if empty
 			curPartition.closeWrite();
 
 			// Save references to full partitions

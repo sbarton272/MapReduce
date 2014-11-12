@@ -6,8 +6,8 @@ import java.util.Collections;
 import java.util.List;
 
 import mapreduce.MRKeyVal;
+import fileIO.KeyPartitionWriter;
 import fileIO.Partition;
-import fileIO.PartitionWriter;
 
 /**
  * Take in partitions and return new sorted partitions. Note that this removes the old partitions.
@@ -16,10 +16,9 @@ import fileIO.PartitionWriter;
  */
 public class MergeSort {
 
-	public static List<Partition<MRKeyVal>> sort(List<Partition<MRKeyVal>> unsortedPartitions) {
+	public static List<Partition<MRKeyVal>> sort(List<Partition<MRKeyVal>> unsortedPartitions, int partitionSize) {
 
 		// Sort individual partitions
-		// TODO can have mappers complete this step
 		List<Partition<MRKeyVal>> newPartitions = new ArrayList<Partition<MRKeyVal>>();
 		for (Partition<MRKeyVal> partition : unsortedPartitions) {
 
@@ -30,7 +29,7 @@ public class MergeSort {
 		}
 
 		// Merge partitions into new partitions
-		List<Partition<MRKeyVal>> sortedPartitions = mergePartitions(newPartitions, newPartitions.get(0).getMaxSize());
+		List<Partition<MRKeyVal>> sortedPartitions = mergePartitions(newPartitions, partitionSize);
 
 		// Remove all old individually sorted partitions
 		for (Partition<MRKeyVal> partition : newPartitions) {
@@ -59,7 +58,10 @@ public class MergeSort {
 			e.printStackTrace();
 		}
 
-		Collections.sort(values); // TODO ordering?
+		// Sort values
+		Collections.sort(values);
+
+		// Store to new partition
 		Partition<MRKeyVal> result = null;
 		try {
 			result = Partition.newFromKVList(values, partition.getMaxSize());
@@ -82,7 +84,7 @@ public class MergeSort {
 			MRKeyVal[] firstElems = populateFirstElems(partitions);
 
 			// Make new partitions the optimal size so know how much to fill each
-			PartitionWriter<MRKeyVal> partitionWriter = new PartitionWriter<MRKeyVal>(newPartitionSize);
+			KeyPartitionWriter partitionWriter = new KeyPartitionWriter(newPartitionSize);
 
 			// Open partition writer, this will write partitions until full and then fill a new one
 			partitionWriter.open();

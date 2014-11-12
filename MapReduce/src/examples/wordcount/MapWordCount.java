@@ -9,7 +9,11 @@ public class MapWordCount implements Map {
 
 	@Override
 	public MRKeyVal map(String input) {
-		return new MRKeyVal(input.toLowerCase(), 1);
+		String word = input.toLowerCase().replaceAll("[^a-z0-9 ]", "");
+		if (word.equals("")) {
+			return null;
+		}
+		return new MRKeyVal(word, 1);
 	}
 
 }

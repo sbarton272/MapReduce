@@ -55,13 +55,13 @@ public class testBasics {
 		l2.addAll(l);
 		l2.add(new MRKeyVal("g",2));
 		try {
-			Partition<MRKeyVal> p2 = Partition.newFromKVList(l, 5);
-			Partition<MRKeyVal> p3 = Partition.newFromKVList(l2, 5);
+			Partition<MRKeyVal> p2 = Partition.newFromKVList(l, partitionSize);
+			Partition<MRKeyVal> p3 = Partition.newFromKVList(l2, partitionSize);
 			List<Partition<MRKeyVal>> partitions = new ArrayList<Partition<MRKeyVal>>();
 			partitions.add(p2);
 			partitions.add(p3);
 
-			List<Partition<MRKeyVal>> sorted = MergeSort.sort(partitions);
+			List<Partition<MRKeyVal>> sorted = MergeSort.sort(partitions, partitionSize);
 
 			// Print results
 			Partition<MRKeyVal> p4 = sorted.get(0);
@@ -91,7 +91,7 @@ public class testBasics {
 			printAllPartitions(mapped);
 
 			// Test sort
-			List<Partition<MRKeyVal>> sorted = MergeSort.sort(mapped);
+			List<Partition<MRKeyVal>> sorted = MergeSort.sort(mapped, partitionSize);
 			printAllPartitions(sorted);
 
 			// Test reduce
