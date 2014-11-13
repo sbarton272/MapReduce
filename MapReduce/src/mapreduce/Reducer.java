@@ -35,7 +35,7 @@ public class Reducer {
 			List<Integer> commonValues = new ArrayList<Integer>();
 			for(Partition<MRKeyVal> p : partitions.getValue()) {
 
-				// Add all partition values (and double check for sanity that keys are same)
+				// Add all partition values but not keys (and double check for sanity that keys are same)
 				for(MRKeyVal kv : p.readAllContents()) {
 
 					// TODO this is for debugging only
@@ -51,7 +51,7 @@ public class Reducer {
 
 			}
 
-			// New key so reduce old key and save results
+			// Reduce for this key
 			MRKeyVal reduceResult = reduceFn.reduce(partitions.getKey(), commonValues);
 			partitionWriter.write(reduceResult);
 
