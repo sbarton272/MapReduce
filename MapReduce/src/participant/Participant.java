@@ -134,6 +134,7 @@ public class Participant {
 	
 	public static List<Partition<MRKeyVal>> runReduce(List<Partition<MRKeyVal>> partitions, Reducer reducer){
 		try {
+			//TODO ask about why reduce now takes a SortedMap instead of a list of Partitions...
 			return reducer.reduce(partitions, partitions.get(0).getMaxSize());
 		} catch (IOException e) {
 			e.printStackTrace();
