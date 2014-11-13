@@ -8,8 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
-import java.util.TreeMap;
-
+import java.util.SortedMap;
 import mapreduce.MRKeyVal;
 import mapreduce.Mapper;
 import mapreduce.Reducer;
@@ -201,54 +200,63 @@ public class Master {
 		return mappedParts;
 	}
 
-	public static List<Partition<MRKeyVal>> coordinateReduce(final int pid, TreeMap<String, List<Partition<MRKeyVal>>> sortedParts, List<Connection> connections){
+	public static List<Partition<MRKeyVal>> coordinateReduce(final int pid, SortedMap<String, List<Partition<MRKeyVal>>> sortedParts, List<Connection> connections){
 		try {
-			final Partition<MRKeyVal> reducedPart = new Partition<MRKeyVal>(sortedParts.size());
+			final List<Partition<MRKeyVal>> reducedParts = new ArrayList<Partition<MRKeyVal>>();
 			final List<Thread> threads = new ArrayList<Thread>();
+			final Map<Integer, List<Partition<MRKeyVal>>> partsByIdx = new HashMap<Integer, List<Partition<MRKeyVal>>>();
 
-			// Iterate through all available participants
-			for(int i = 0; i < connections.size(); i++){
-				final Connection connection = connections.get(i);
-
-				// If out of partitions do not pass any more out
-				if(i >= sortedParts.size()){
-					i = connections.size(); // TODO why?
+			// Iterate through all partitions, distribute to participants as evenly as possible
+			int i = 0;
+			for(String key : sortedParts.keySet()){
+				List<Partition<MRKeyVal>> parts;
+				if(partsByIdx.containsKey(i%(connections.size()))){
+					parts = partsByIdx.get(i%(connections.size()));
+				}
+				else{
+					parts = new ArrayList<Partition<MRKeyVal>>();
+				}
+				parts.addAll(sortedParts.get(key));
+				partsByIdx.put(i%(connections.size()), parts);
+				
+				i++;
+			}
+			
+			//Send participants reduce commands with partitions defined above
+			for(int j = 0; j < connections.size(); j++){
+				if(!partsByIdx.containsKey(j)){
 					break;
 				}
+				else{
+					final Connection connection = connections.get(j);
+					final List<Partition<MRKeyVal>> parts = partsByIdx.get(j);
+					//Sends participant j a reduce command, handles results
+					Thread reduceComThread = new Thread(new Runnable() {
+						@Override
+						public void run() {
+							ReduceCommand reduceCom = new ReduceCommand(parts, pid, reducer);
+							try {
+								connection.getOutputStream().writeObject(reduceCom);
+								// TODO handle timeout for acknowledge/done!
+								ReduceAcknowledge reduceAck = (ReduceAcknowledge)connection.getInputStream().readObject();
+								ReduceDone reduceDone = (ReduceDone)connection.getInputStream().readObject();
 
-				// Split partitions among participants
-				// TODO THIS IS WHERE I LEFT OFF: Note that the reduce step now returns a sorted list of lists. The lists are organized by common key.
-				//  The reduce operation should ensure that all of one key type partitions are sent to the same participant
-
-				// TODO split by key
-				final List<Partition<MRKeyVal>> parts = new ArrayList<Partition<MRKeyVal>>();
-				parts.add(sortedParts.get(i));
-
-				// Send reduce command thread
-				Thread reduceComThread = new Thread(new Runnable() {
-					@Override
-					public void run() {
-						ReduceCommand reduceCom = new ReduceCommand(parts, pid, reducer);
-						try {
-							connection.getOutputStream().writeObject(reduceCom);
-							// TODO handle timeout for acknowledge/done!
-							ReduceAcknowledge reduceAck = (ReduceAcknowledge)connection.getInputStream().readObject();
-							ReduceDone reduceDone = (ReduceDone)connection.getInputStream().readObject();
-
-							// Extract partitions and load all
-							reduceDone.getKeyValPartitions();
-							// TODO reducedPart
-
-							if(!reduceDone.succeeded()){
-								// TODO handle failure of a reducer
+								if(!reduceDone.succeeded()){
+									// TODO handle failure of a reducer (remove connection from list, store failed partitions, do later)
+								}
+								else{
+									// Extract partitions and load all
+									List<Partition<MRKeyVal>> reduced = reduceDone.getKeyValPartitions();
+									reducedParts.addAll(reduced);
+								}
+							} catch (Exception e) {
+								e.printStackTrace();
 							}
-						} catch (Exception e) {
-							e.printStackTrace();
 						}
-					}
-				});
-				threads.add(reduceComThread);
-				reduceComThread.start();
+					});
+					threads.add(reduceComThread);
+					reduceComThread.start();
+				}
 			}
 			//TODO retry any failures, remove bad connections from list
 			for (Thread thread : threads) {
@@ -260,21 +268,24 @@ public class Master {
 				}
 			}
 			//Perform final reduce, send to good connection
-			List<Partition<MRKeyVal>> parts = new ArrayList<Partition<MRKeyVal>>();
-			parts.add(reducedPart);
-			ReduceCommand reduceCom = new ReduceCommand(parts, pid, reducer);
+			ReduceCommand reduceCom = new ReduceCommand(reducedParts, pid, reducer);
 			Connection connection = connections.get(0);
 			try {
 				connection.getOutputStream().writeObject(reduceCom);
 				// TODO handle timeout for acknowledge/done!
 				ReduceAcknowledge reduceAck = (ReduceAcknowledge)connection.getInputStream().readObject();
 				ReduceDone reduceDone = (ReduceDone)connection.getInputStream().readObject();
-				return reduceDone.getKeyValPartitions();
+				if(reduceDone.succeeded()){
+					return reduceDone.getKeyValPartitions();
+				}
+				else{
+					//try again on a different participant?
+				}
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
 			//TODO retry on another participant if this failed.
-		} catch (IOException e1) {
+		} catch (Exception e1) {
 			e1.printStackTrace();
 		}
 		return null;
@@ -311,9 +322,7 @@ public class Master {
 			connectionsByPid.remove(pid);
 
 			//sort
-
-			// TODO the return type changed
-			TreeMap<String,List<Partition<MRKeyVal>>> sortedParts = Sort.sort(mappedParts, configLoader.getPartitionSize());
+			SortedMap<String,List<Partition<MRKeyVal>>> sortedParts = Sort.sort(mappedParts, configLoader.getPartitionSize());
 			sortDone.add(pid);
 
 			//reconnect to participants
