@@ -8,11 +8,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.TreeMap;
 
 import mapreduce.MRKeyVal;
 import mapreduce.Mapper;
 import mapreduce.Reducer;
-import mergesort.MergeSort;
 import messages.MapAcknowledge;
 import messages.MapCommand;
 import messages.MapDone;
@@ -21,6 +21,7 @@ import messages.ReduceCommand;
 import messages.ReduceDone;
 import messages.StopCommand;
 import messages.StopDone;
+import sort.Sort;
 import fileIO.Partition;
 
 public class Master {
@@ -200,9 +201,9 @@ public class Master {
 		return mappedParts;
 	}
 
-	public static List<Partition<MRKeyVal>> coordinateReduce(final int pid, List<Partition<MRKeyVal>> partitions, List<Connection> connections){
+	public static List<Partition<MRKeyVal>> coordinateReduce(final int pid, TreeMap<String, List<Partition<MRKeyVal>>> sortedParts, List<Connection> connections){
 		try {
-			final Partition<MRKeyVal> reducedPart = new Partition<MRKeyVal>(partitions.size());
+			final Partition<MRKeyVal> reducedPart = new Partition<MRKeyVal>(sortedParts.size());
 			final List<Thread> threads = new ArrayList<Thread>();
 
 			// Iterate through all available participants
@@ -210,7 +211,7 @@ public class Master {
 				final Connection connection = connections.get(i);
 
 				// If out of partitions do not pass any more out
-				if(i >= partitions.size()){
+				if(i >= sortedParts.size()){
 					i = connections.size(); // TODO why?
 					break;
 				}
@@ -221,7 +222,7 @@ public class Master {
 
 				// TODO split by key
 				final List<Partition<MRKeyVal>> parts = new ArrayList<Partition<MRKeyVal>>();
-				parts.add(partitions.get(i));
+				parts.add(sortedParts.get(i));
 
 				// Send reduce command thread
 				Thread reduceComThread = new Thread(new Runnable() {
@@ -312,7 +313,7 @@ public class Master {
 			//sort
 
 			// TODO the return type changed
-			List<Partition<MRKeyVal>> sortedParts = MergeSort.sort(mappedParts, configLoader.getPartitionSize());
+			TreeMap<String,List<Partition<MRKeyVal>>> sortedParts = Sort.sort(mappedParts, configLoader.getPartitionSize());
 			sortDone.add(pid);
 
 			//reconnect to participants

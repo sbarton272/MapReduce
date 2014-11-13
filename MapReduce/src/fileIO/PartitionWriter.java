@@ -18,11 +18,8 @@ public class PartitionWriter<T> {
 	protected ArrayList<Partition<T>> partitions;
 	protected Partition<T> curPartition;
 
-	public PartitionWriter(int partitionSize) {
+	public PartitionWriter(int partitionSize) throws IOException {
 		this.partitionSize = partitionSize;
-	}
-
-	public void open() throws IOException {
 		writeMode = true;
 
 		partitions = new ArrayList<Partition<T>>();

@@ -1,9 +1,9 @@
 package examples.wordcount;
 
 import mapreduce.MRKeyVal;
-import mapreduce.Map;
+import mapreduce.MapFn;
 
-public class MapWordCount implements Map {
+public class MapWordCount implements MapFn {
 
 	private static final long serialVersionUID = 2301357566813845030L;
 

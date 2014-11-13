@@ -1,8 +1,8 @@
 package fileIO;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.TreeMap;
 
 import mapreduce.MRKeyVal;
 
@@ -13,46 +13,28 @@ import mapreduce.MRKeyVal;
 public class KeyPartitionWriter {
 
 	private final int partitionSize;
-	private boolean writeMode = false;
 	private boolean firstElem = true;
-	private List<List<KeyPartition>> partitions;
-	private List<KeyPartition> curKeyList;
-	private KeyPartition curPartition;
+	private final TreeMap<String,List<Partition<MRKeyVal>>> partitions;
+	private PartitionWriter<MRKeyVal> curPartitionWriter;
 	private String curKey;
 
-	public KeyPartitionWriter(int partitionSize) {
+	public KeyPartitionWriter(int partitionSize) throws IOException {
 		this.partitionSize = partitionSize;
-	}
+		partitions = new TreeMap<String,List<Partition<MRKeyVal>>>();
 
-	public void open() throws IOException {
-		writeMode = true;
+		// Keep track of first element so know when have a valid curKey
 		firstElem = true;
 
-		partitions = new ArrayList<List<KeyPartition>>();
-
-		// Begin with a new list of same key partitions
-		curKeyList = new ArrayList<KeyPartition>();
+		// Begin first partition writer
+		curPartitionWriter = new PartitionWriter<MRKeyVal>(partitionSize);
 
 	}
 
-	public List<List<KeyPartition>> close() throws IOException {
+	public TreeMap<String, List<Partition<MRKeyVal>>> close() throws IOException {
 
-		// Need to be in writeMode to ensure that curPartition can be closed
-		if (!writeMode){
-			throw(new IOException("Need to open writer first"));
-		}
-
-		// Something was written
+		// Something was written so save remaining partitions
 		if (!firstElem) {
-
-			// Current partition has not been closed yet because it is not full
-			curPartition.closeWrite();
-
-			// Add curPartition to partitions if it has elements
-			if (!curPartition.isEmpty()) {
-				curKeyList.add(curPartition);
-				partitions.add(curKeyList);
-			}
+			partitions.put(curKey, curPartitionWriter.close());
 		}
 
 		return partitions;
@@ -60,59 +42,27 @@ public class KeyPartitionWriter {
 
 	public void write(MRKeyVal kv) throws IOException {
 
-		// Need to be in writeMode to ensure that curPartition exists
-		if (!writeMode){
-			throw(new IOException("Need to open writer first"));
-		}
-
-		// Set cur key if this is the first elem
+		// Set cur key if this is the first element
 		if (firstElem) {
 			curKey = kv.getKey();
-
-			// Begin with a new partition to write
-			curPartition = new KeyPartition(partitionSize, curKey);
-			curPartition.openWrite();
-
 			firstElem = false;
 		}
 
-		// If curPartition full or new key, store and create a new partition
-		if (curPartition.isFull()) {
+		// If new key discovered save the current partitions and start writing new partitions
+		if (!curKey.equals(kv.getKey())) {
 
-			// Close current partition for writing
-			curPartition.closeWrite();
+			// Close current partitions and save to partitions with their key
+			partitions.put(curKey, curPartitionWriter.close());
 
-			// Save to curKeyList
-			curKeyList.add(curPartition);
-
-			// Create new partition and open for writing
-			curPartition = new KeyPartition(partitionSize, curKey);
-			curPartition.openWrite();
-
-		} else if (!curKey.equals(kv.getKey())) {
-
-			// Save last key partition
-			curPartition.closeWrite();
-			curKeyList.add(curPartition);
-
-			// Done with this key so add curKeyList to partitions
-			partitions.add(curKeyList);
-
-			// Create new partition and new curKeyList
-			curPartition = new KeyPartition(partitionSize, curKey);
-			curPartition.openWrite();
-			curKeyList = new ArrayList<KeyPartition>();
-
-			// Update current key
+			// Set new key and new partition writer
+			curPartitionWriter = new PartitionWriter<MRKeyVal>(partitionSize);
 			curKey = kv.getKey();
-
 		}
+		curPartitionWriter.write(kv);
 
-		// Write value to curPartition
-		curPartition.write(kv);
 	}
 
-	public List<List<KeyPartition>> getPartitions() {
+	public TreeMap<String, List<Partition<MRKeyVal>>> getPartitions() {
 		return partitions;
 	}
 }

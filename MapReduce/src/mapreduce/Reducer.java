@@ -13,9 +13,9 @@ import fileIO.PartitionWriter;
  */
 public class Reducer {
 
-	private final Reduce reduceFn;
+	private final ReduceFn reduceFn;
 
-	public Reducer(Reduce reduceFn) {
+	public Reducer(ReduceFn reduceFn) {
 		this.reduceFn = reduceFn;
 	}
 
@@ -24,7 +24,6 @@ public class Reducer {
 
 		// Start partitionWriter to write reduced values
 		PartitionWriter<MRKeyVal> partitionWriter = new PartitionWriter<MRKeyVal>(partitionSize);
-		partitionWriter.open();
 
 		// Values used to collect common key values
 		List<Integer> commonValues = new ArrayList<Integer>();

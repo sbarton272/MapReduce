@@ -4,9 +4,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import mapreduce.MRKeyVal;
-import mapreduce.Map;
+import mapreduce.MapFn;
 
-public class MapWordOccurences implements Map {
+public class MapWordOccurences implements MapFn {
 
 	private static final long serialVersionUID = 7691009690046665508L;
 	private final String word = "macbeth";

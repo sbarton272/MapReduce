@@ -2,14 +2,14 @@ package tests;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import mapreduce.MRKeyVal;
 import mapreduce.Mapper;
 import mapreduce.Reducer;
 import master.ConfigLoader;
-import mergesort.MergeSort;
-import fileIO.KeyPartition;
+import sort.Sort;
 import fileIO.Partition;
 
 public class testExamples {
@@ -26,7 +26,7 @@ public class testExamples {
 			List<Partition<String>> input = Partition.fileToPartitions(config.getInputFile().getPath(), config.getPartitionSize());
 			Mapper mapper = new Mapper(config.getMapFn());
 			List<Partition<MRKeyVal>> mapped = mapper.map(input, config.getPartitionSize());
-			List<Partition<MRKeyVal>> sorted = flatten(MergeSort.sort(mapped, config.getPartitionSize()));
+			List<Partition<MRKeyVal>> sorted = flatten(Sort.sort(mapped, config.getPartitionSize()).values());
 			Reducer reducer = new Reducer(config.getReduceFn());
 			List<Partition<MRKeyVal>> reduced = reducer.reduce(sorted, config.getPartitionSize());
 			Partition.partitionsToFile(reduced, config.getOutputFile().getPath(), "-");
@@ -46,7 +46,7 @@ public class testExamples {
 			List<Partition<String>> input = Partition.fileToPartitions(config.getInputFile().getPath(), config.getPartitionSize());
 			Mapper mapper = new Mapper(config.getMapFn());
 			List<Partition<MRKeyVal>> mapped = mapper.map(input, config.getPartitionSize());
-			List<Partition<MRKeyVal>> sorted = flatten(MergeSort.sort(mapped, config.getPartitionSize()));
+			List<Partition<MRKeyVal>> sorted = flatten(Sort.sort(mapped, config.getPartitionSize()).values());
 			Reducer reducer = new Reducer(config.getReduceFn());
 			List<Partition<MRKeyVal>> reduced = reducer.reduce(sorted, config.getPartitionSize());
 			Partition.partitionsToFile(reduced, config.getOutputFile().getPath(), "-");
@@ -64,9 +64,9 @@ public class testExamples {
 
 	}
 
-	private static List<Partition<MRKeyVal>> flatten(List<List<KeyPartition>> list2) {
+	private static List<Partition<MRKeyVal>> flatten(Collection<List<Partition<MRKeyVal>>> collection) {
 		List<Partition<MRKeyVal>> list = new ArrayList<Partition<MRKeyVal>>();
-		for (List<KeyPartition> l : list2) {
+		for (List<Partition<MRKeyVal>> l : collection) {
 			list.addAll(l);
 		}
 		return list;

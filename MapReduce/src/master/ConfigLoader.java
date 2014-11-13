@@ -11,8 +11,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import mapreduce.Map;
-import mapreduce.Reduce;
+import mapreduce.MapFn;
+import mapreduce.ReduceFn;
 
 public class ConfigLoader {
 
@@ -34,9 +34,9 @@ public class ConfigLoader {
 	private String jobname = "";
 	private File inputFile = null;
 	private File outputFile = null;
-	private Map mapFn = null;
+	private MapFn mapFn = null;
 	private int mapTimeoutSec = 10;
-	private Reduce reduceFn = null;
+	private ReduceFn reduceFn = null;
 	private int reduceTimeoutSec = 10;
 	private int partitionSize = 64;
 	private String masterHostName = "localhost";
@@ -81,7 +81,7 @@ public class ConfigLoader {
 		case STR_MAP_FN:
 			// TODO just parse strings, move jar loader to remote jar file type (master does not need these objects)
 			try {
-				mapFn = (Map) loadClass(val);
+				mapFn = (MapFn) loadClass(val);
 			} catch (Exception e) {
 				e.printStackTrace();
 				System.out.println("Loading config: unable to load " + val);
@@ -92,7 +92,7 @@ public class ConfigLoader {
 			break;
 		case STR_REDUCE_FN:
 			try {
-				reduceFn = (Reduce) loadClass(val);
+				reduceFn = (ReduceFn) loadClass(val);
 			} catch (Exception e) {
 				e.printStackTrace();
 				System.out.println("Loading config: unable to load " + val);
@@ -194,7 +194,7 @@ public class ConfigLoader {
 		return outputFile;
 	}
 
-	public Map getMapFn() {
+	public MapFn getMapFn() {
 		return mapFn;
 	}
 
@@ -202,7 +202,7 @@ public class ConfigLoader {
 		return mapTimeoutSec;
 	}
 
-	public Reduce getReduceFn() {
+	public ReduceFn getReduceFn() {
 		return reduceFn;
 	}
 

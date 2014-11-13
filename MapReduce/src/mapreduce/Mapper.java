@@ -11,19 +11,16 @@ import fileIO.PartitionWriter;
  */
 public class Mapper {
 
-	private final Map mapFn;
+	private final MapFn mapFn;
 
-	public Mapper(Map mapFn) {
+	public Mapper(MapFn mapFn) {
 		this.mapFn = mapFn;
 	}
 
 	public List<Partition<MRKeyVal>> map(List<Partition<String>> oldPartitions, int partitionSize) throws IOException {
 
-		// TODO tmp dir per participant to get around AFS
-
 		// Start partitionWriter to write mapped values
 		PartitionWriter<MRKeyVal> partitionWriter = new PartitionWriter<MRKeyVal>(partitionSize);
-		partitionWriter.open();
 
 		// Iterate through partitions
 		for (Partition<String> p : oldPartitions) {

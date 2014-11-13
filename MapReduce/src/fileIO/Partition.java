@@ -248,7 +248,6 @@ public class Partition<T> extends RemoteFile {
 
 		// Partition writer to create partitions
 		PartitionWriter<String> partitionWriter = new PartitionWriter<String>(partitionSize);
-		partitionWriter.open();
 
 		// Iterate through input file
 		String line = reader.readLine();
