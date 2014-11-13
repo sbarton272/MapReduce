@@ -263,23 +263,25 @@ public class Master {
 
 	public static List<Partition<MRKeyVal>> coordinateReduce(final int pid, SortedMap<String, List<Partition<MRKeyVal>>> sortedParts, List<Connection> connections){
 		try {
+			//TODO each reducer writes to its own output file instead of returning to one output
+			//TODO config specifies number of reducers, just pick that many
 			final List<Partition<MRKeyVal>> reducedParts = new ArrayList<Partition<MRKeyVal>>();
 			final Map<Connection, Thread> threadsByConn = new HashMap<Connection, Thread>();
 			final Map<Connection, Integer> connIdx = new HashMap<Connection, Integer>();
-			final Map<Integer, List<Partition<MRKeyVal>>> partsByIdx = new HashMap<Integer, List<Partition<MRKeyVal>>>();
+			final Map<Integer, SortedMap<String,List<Partition<MRKeyVal>>>> partsByIdx = new HashMap<Integer, SortedMap<String,List<Partition<MRKeyVal>>>>();
 
 			// Iterate through all partitions, distribute to participants as evenly as possible
 			int i = 0;
 			for(String key : sortedParts.keySet()){
-				List<Partition<MRKeyVal>> parts;
+				SortedMap<String,List<Partition<MRKeyVal>>> storedSort;
 				if(partsByIdx.containsKey(i%(connections.size()))){
-					parts = partsByIdx.get(i%(connections.size()));
+					storedSort = partsByIdx.get(i%(connections.size()));
 				}
 				else{
-					parts = new ArrayList<Partition<MRKeyVal>>();
+					storedSort = new TreeMap<String,List<Partition<MRKeyVal>>>();
 				}
-				parts.addAll(sortedParts.get(key));
-				partsByIdx.put(i%(connections.size()), parts);
+				storedSort.put(key, sortedParts.get(key));
+				partsByIdx.put(i%(connections.size()), storedSort);
 				
 				i++;
 			}
@@ -293,7 +295,7 @@ public class Master {
 				}
 				else{
 					final Connection connection = connections.get(j);
-					final List<Partition<MRKeyVal>> parts = partsByIdx.get(j);
+					final SortedMap<String,List<Partition<MRKeyVal>>> parts = partsByIdx.get(j);
 					//Sends participant j a reduce command, handles results
 					Thread reduceComThread = new Thread(new Runnable() {
 						@Override
@@ -308,22 +310,7 @@ public class Master {
 								if(!reduceDone.succeeded()){
 									//Reducer failed: remove connection from list, store failed partitions, do later
 									toRemove.add(connection);
-									for(int k = 0; k < parts.size(); k++){
-										Partition<MRKeyVal> tempPart = parts.get(k);
-										tempPart.openRead();
-										String key = tempPart.read().getKey();
-										tempPart.closeRead();
-										if(failedParts.containsKey(key)){
-											List<Partition<MRKeyVal>> storedFails = failedParts.get(key);
-											storedFails.add(tempPart);
-											failedParts.put(key, storedFails);
-										}
-										else{
-											List<Partition<MRKeyVal>> tempList = new ArrayList<Partition<MRKeyVal>>();
-											tempList.add(tempPart);
-											failedParts.put(key, tempList);
-										}
-									}
+									failedParts.putAll(parts);
 								}
 								else{
 									// Extract partitions and load all
@@ -334,27 +321,9 @@ public class Master {
 									reducedParts.addAll(reduced);
 								}
 							} catch (Exception e) {
+								//Reducer failed somewhere, remove connection from list, store failed partitions
 								toRemove.add(connection);
-								for(int k = 0; k < parts.size(); k++){
-									Partition<MRKeyVal> tempPart = parts.get(k);
-									try {
-										tempPart.openRead();
-										String key = tempPart.read().getKey();
-										tempPart.closeRead();
-										if(failedParts.containsKey(key)){
-											List<Partition<MRKeyVal>> storedFails = failedParts.get(key);
-											storedFails.add(tempPart);
-											failedParts.put(key, storedFails);
-										}
-										else{
-											List<Partition<MRKeyVal>> tempList = new ArrayList<Partition<MRKeyVal>>();
-											tempList.add(tempPart);
-											failedParts.put(key, tempList);
-										}
-									} catch (IOException e1) {
-										e1.printStackTrace();
-									}
-								}
+								failedParts.putAll(parts);
 							}
 						}
 					});
@@ -375,27 +344,8 @@ public class Master {
 					if(thread.isAlive()){
 						thread.interrupt();
 						toRemove.add(conn);
-						List<Partition<MRKeyVal>> parts = partsByIdx.get(m);
-						for(int k = 0; k < parts.size(); k++){
-							Partition<MRKeyVal> tempPart = parts.get(k);
-							try {
-								tempPart.openRead();
-								String key = tempPart.read().getKey();
-								tempPart.closeRead();
-								if(failedParts.containsKey(key)){
-									List<Partition<MRKeyVal>> storedFails = failedParts.get(key);
-									storedFails.add(tempPart);
-									failedParts.put(key, storedFails);
-								}
-								else{
-									List<Partition<MRKeyVal>> tempList = new ArrayList<Partition<MRKeyVal>>();
-									tempList.add(tempPart);
-									failedParts.put(key, tempList);
-								}
-							} catch (IOException e1) {
-								e1.printStackTrace();
-							}
-						}
+						SortedMap<String,List<Partition<MRKeyVal>>> parts = partsByIdx.get(m);
+						failedParts.putAll(parts);
 					}
 					else{
 						partsDoneByPid.put(pid, (partsDoneByPid.get(pid)+1));
@@ -415,44 +365,6 @@ public class Master {
 				}
 			}
 			
-			//Perform final reduce, send to good connection
-			ReduceCommand reduceCom = new ReduceCommand(reducedParts, pid, reducer);
-			Connection connection = connections.get(0);
-			try {
-				connection.getOutputStream().writeObject(reduceCom);
-				ReduceAcknowledge reduceAck = (ReduceAcknowledge)connection.getInputStream().readObject();
-				ReduceDone reduceDone = (ReduceDone)connection.getInputStream().readObject();
-				if(reduceDone.succeeded()){
-					return reduceDone.getKeyValPartitions();
-				}
-				else{
-					//try again on a different participant
-					connections.remove(connection);
-					for (Connection conn : connections){
-						conn.getOutputStream().writeObject(reduceCom);
-						ReduceAcknowledge ack = (ReduceAcknowledge)connection.getInputStream().readObject();
-						ReduceDone done = (ReduceDone)connection.getInputStream().readObject();
-						if(done.succeeded()){
-							return done.getKeyValPartitions();
-						}
-						connections.remove(conn);
-					}
-					System.out.println("Process "+pid+" Error: All connections failed before reduce was complete.");
-					return null;
-				}
-			} catch (Exception e) {
-				for (Connection conn : connections){
-					conn.getOutputStream().writeObject(reduceCom);
-					ReduceAcknowledge ack = (ReduceAcknowledge)connection.getInputStream().readObject();
-					ReduceDone done = (ReduceDone)connection.getInputStream().readObject();
-					if(done.succeeded()){
-						return done.getKeyValPartitions();
-					}
-					connections.remove(conn);
-				}
-				System.out.println("Process "+pid+" Error: All connections failed before reduce was complete.");
-				return null;
-			}
 		} catch (Exception e1) {
 			e1.printStackTrace();
 		}

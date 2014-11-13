@@ -8,6 +8,8 @@ import java.net.Socket;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedMap;
+
 import fileIO.Partition;
 import mapreduce.MRKeyVal;
 import mapreduce.Mapper;
@@ -16,6 +18,7 @@ import messages.Command;
 import messages.MapAcknowledge;
 import messages.MapDone;
 import messages.ReduceAcknowledge;
+import messages.ReduceCommand;
 import messages.ReduceDone;
 import messages.StopDone;
 
@@ -62,10 +65,11 @@ public class Participant {
 					mapThread.start();
 				}
 				else if(command.getType().equals("reduce")){
+					final ReduceCommand redCom = (ReduceCommand) command;
 					Thread reduceThread = new Thread(new Runnable(){
 						public void run(){
 							try {
-								ReduceAcknowledge reduceAck = new ReduceAcknowledge(command.getKeyValPartitions(), command.getPid());
+								ReduceAcknowledge reduceAck = new ReduceAcknowledge(redCom.getReduceParts(), redCom.getPid());
 								if(Thread.interrupted()){
 									return;
 								}
@@ -73,11 +77,11 @@ public class Participant {
 								if(Thread.interrupted()){
 									return;
 								}
-								List<Partition<MRKeyVal>> reducedParts = runReduce(command.getKeyValPartitions(), command.getReducer());
+								List<Partition<MRKeyVal>> reducedParts = runReduce(redCom.getReduceParts(), redCom.getReducer());
 								if(Thread.interrupted()){
 									return;
 								}
-								ReduceDone reduceDone = new ReduceDone(true, reducedParts, command.getPid());
+								ReduceDone reduceDone = new ReduceDone(true, reducedParts, redCom.getPid());
 								out.writeObject(reduceDone);
 							} catch (IOException e) {
 								e.printStackTrace();
@@ -132,10 +136,11 @@ public class Participant {
 		}
 	}
 	
-	public static List<Partition<MRKeyVal>> runReduce(List<Partition<MRKeyVal>> partitions, Reducer reducer){
+	public static List<Partition<MRKeyVal>> runReduce(SortedMap<String,List<Partition<MRKeyVal>>> partitions, Reducer reducer){
 		try {
 			//TODO ask about why reduce now takes a SortedMap instead of a list of Partitions...
-			return reducer.reduce(partitions, partitions.get(0).getMaxSize());
+			String tempKey = (String) partitions.keySet().toArray()[0];
+			return reducer.reduce(partitions, partitions.get(tempKey).get(0).getMaxSize());
 		} catch (IOException e) {
 			e.printStackTrace();
 			return null;
