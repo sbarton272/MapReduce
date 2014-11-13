@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.SortedMap;
 
 import mapreduce.MRKeyVal;
 import mapreduce.Mapper;
@@ -26,7 +27,7 @@ public class testExamples {
 			List<Partition<String>> input = Partition.fileToPartitions(config.getInputFile().getPath(), config.getPartitionSize());
 			Mapper mapper = new Mapper(config.getMapFn());
 			List<Partition<MRKeyVal>> mapped = mapper.map(input, config.getPartitionSize());
-			List<Partition<MRKeyVal>> sorted = flatten(Sort.sort(mapped, config.getPartitionSize()).values());
+			SortedMap<String, List<Partition<MRKeyVal>>> sorted = Sort.sort(mapped, config.getPartitionSize());
 			Reducer reducer = new Reducer(config.getReduceFn());
 			List<Partition<MRKeyVal>> reduced = reducer.reduce(sorted, config.getPartitionSize());
 			Partition.partitionsToFile(reduced, config.getOutputFile().getPath(), "-");
@@ -46,22 +47,34 @@ public class testExamples {
 			List<Partition<String>> input = Partition.fileToPartitions(config.getInputFile().getPath(), config.getPartitionSize());
 			Mapper mapper = new Mapper(config.getMapFn());
 			List<Partition<MRKeyVal>> mapped = mapper.map(input, config.getPartitionSize());
-			List<Partition<MRKeyVal>> sorted = flatten(Sort.sort(mapped, config.getPartitionSize()).values());
+			printAllPartitions(mapped);
+
+			SortedMap<String,List<Partition<MRKeyVal>>> sorted = Sort.sort(mapped, config.getPartitionSize());
+			List<Partition<MRKeyVal>> sortedList = flatten(sorted.values());
+			printAllPartitions(sortedList);
+
 			Reducer reducer = new Reducer(config.getReduceFn());
 			List<Partition<MRKeyVal>> reduced = reducer.reduce(sorted, config.getPartitionSize());
+			printAllPartitions(reduced);
+
 			Partition.partitionsToFile(reduced, config.getOutputFile().getPath(), "-");
 
-			List<Partition<String>> check = Partition.fileToPartitions(config.getOutputFile().getPath(), 5);
-			System.out.println(check.get(0));
-
-			Partition.deleteAll(check);
 			Partition.deleteAll(reduced);
 
 		} catch (IOException e) {
 			System.out.println("Unable to load config");
 		}
 
+		System.out.println("Done");
 
+	}
+
+	private static void printAllPartitions(List<Partition<MRKeyVal>> partitions) throws IOException {
+		System.out.print("Partitions("+partitions.size()+") ");
+		for(Partition<MRKeyVal> p : partitions) {
+			System.out.print(p.readAllContents());
+		}
+		System.out.println();
 	}
 
 	private static List<Partition<MRKeyVal>> flatten(Collection<List<Partition<MRKeyVal>>> collection) {

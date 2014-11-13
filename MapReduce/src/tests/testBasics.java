@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedMap;
 
 import mapreduce.MRKeyVal;
 import mapreduce.MapFn;
@@ -102,13 +103,13 @@ public class testBasics {
 			printAllPartitions(mapped);
 
 			// Test sort
-			Map<String,List<Partition<MRKeyVal>>> sorted = Sort.sort(mapped, partitionSize);
+			SortedMap<String,List<Partition<MRKeyVal>>> sorted = Sort.sort(mapped, partitionSize);
 			List<Partition<MRKeyVal>> sortedList = flatten(sorted.values());
 			printAllPartitions(sortedList);
 
 			// Test reduce
 			Reducer reducer = new Reducer(new ReduceWordCount());
-			List<Partition<MRKeyVal>> reduced = reducer.reduce(sortedList, partitionSize);
+			List<Partition<MRKeyVal>> reduced = reducer.reduce(sorted, partitionSize);
 			printAllPartitions(reduced);
 
 			// Test write to output file

@@ -3,6 +3,8 @@ package mapreduce;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map.Entry;
+import java.util.SortedMap;
 
 import fileIO.Partition;
 import fileIO.PartitionWriter;
@@ -19,51 +21,39 @@ public class Reducer {
 		this.reduceFn = reduceFn;
 	}
 
-	public List<Partition<MRKeyVal>> reduce(List<Partition<MRKeyVal>> oldPartitions, int partitionSize) throws IOException {
+	public List<Partition<MRKeyVal>> reduce(SortedMap<String,List<Partition<MRKeyVal>>> oldPartitions, int partitionSize) throws IOException {
 		// TODO support n reducers with n output files
 
 		// Start partitionWriter to write reduced values
 		PartitionWriter<MRKeyVal> partitionWriter = new PartitionWriter<MRKeyVal>(partitionSize);
 
-		// Values used to collect common key values
-		List<Integer> commonValues = new ArrayList<Integer>();
-		String curKey = null;
+		// Iterate through partitions, each partition will have only one key type
+		// Gather all common key types before reducing
+		for (Entry<String, List<Partition<MRKeyVal>>> partitions : oldPartitions.entrySet()) {
 
-		// Iterate through partitions
-		for (Partition<MRKeyVal> p : oldPartitions) {
+			// Collect all values before reducing
+			List<Integer> commonValues = new ArrayList<Integer>();
+			for(Partition<MRKeyVal> p : partitions.getValue()) {
 
-			// Get partition values
-			List<MRKeyVal> input = p.readAllContents();
+				// Add all partition values (and double check for sanity that keys are same)
+				for(MRKeyVal kv : p.readAllContents()) {
 
-			// Iterate through partition values and save to new partition
-			// Collect values by key and once we have seen all of one key
-			// we will reduce and save the result
-			for (MRKeyVal keyVal : input) {
-
-				if (keyVal.getKey().equals(curKey)) {
-					commonValues.add(keyVal.getVal());
-				} else {
-
-					// Do not give reduce null key or empty common values
-					if ((curKey != null) && (!commonValues.isEmpty())) {
-
-						// New key so reduce old key and save results
-						MRKeyVal reduceResult = reduceFn.reduce(curKey, commonValues);
-						partitionWriter.write(reduceResult);
+					// TODO this is for debugging only
+					if (!kv.getKey().equals(partitions.getKey())) {
+						throw(new IOException("Partitions are not by key"));
 					}
 
-					// Set new key and reset commonValues
-					curKey = keyVal.getKey();
-					commonValues.clear();
-
-					// Add current value
-					commonValues.add(keyVal.getVal());
-
+					commonValues.add(kv.getVal());
 				}
+
+				// Remove old partitions
+				p.delete();
+
 			}
 
-			// Remove old partitions
-			p.delete();
+			// New key so reduce old key and save results
+			MRKeyVal reduceResult = reduceFn.reduce(partitions.getKey(), commonValues);
+			partitionWriter.write(reduceResult);
 
 		}
 		partitionWriter.close();

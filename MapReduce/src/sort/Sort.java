@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.SortedMap;
 import java.util.TreeMap;
 
 import mapreduce.MRKeyVal;
@@ -17,7 +18,7 @@ import fileIO.Partition;
  */
 public class Sort {
 
-	public static TreeMap<String, List<Partition<MRKeyVal>>> sort(List<Partition<MRKeyVal>> unsortedPartitions, int partitionSize) {
+	public static SortedMap<String, List<Partition<MRKeyVal>>> sort(List<Partition<MRKeyVal>> unsortedPartitions, int partitionSize) {
 
 		// Sort individual partitions
 		List<Partition<MRKeyVal>> newPartitions = new ArrayList<Partition<MRKeyVal>>();
@@ -30,7 +31,7 @@ public class Sort {
 		}
 
 		// Merge partitions into new partitions
-		TreeMap<String,List<Partition<MRKeyVal>>> sortedPartitions = mergePartitions(newPartitions, partitionSize);
+		SortedMap<String,List<Partition<MRKeyVal>>> sortedPartitions = mergePartitions(newPartitions, partitionSize);
 
 		// Remove all old individually sorted partitions
 		for (Partition<MRKeyVal> partition : newPartitions) {
@@ -76,9 +77,9 @@ public class Sort {
 	 * Merge all partitions together at once. Stores entries by key in a map.
 	 * The values of the map are lists of same-key partitions.
 	 */
-	private static TreeMap<String,List<Partition<MRKeyVal>>> mergePartitions(List<Partition<MRKeyVal>> partitions, int newPartitionSize) {
+	private static SortedMap<String,List<Partition<MRKeyVal>>> mergePartitions(List<Partition<MRKeyVal>> partitions, int newPartitionSize) {
 
-		TreeMap<String, List<Partition<MRKeyVal>>> sortedPartitions = new TreeMap<String,List<Partition<MRKeyVal>>>();
+		SortedMap<String, List<Partition<MRKeyVal>>> sortedPartitions = new TreeMap<String,List<Partition<MRKeyVal>>>();
 		try {
 
 			// Continue merging until all partitions are merged
