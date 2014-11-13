@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.SortedMap;
+import java.util.TreeMap;
 import mapreduce.MRKeyVal;
 import mapreduce.Mapper;
 import mapreduce.Reducer;
@@ -42,14 +43,16 @@ public class Master {
 	private static List<Integer> writtenToFile;
 	private static Mapper mapper;
 	private static Reducer reducer;
+	private static int mapTimeout;
+	private static int reduceTimeout;
 
 	public static void main(String[] args) {
-		//TODO config loader
-		//TODO properly define mapper/reducer based on config file!
 		mapper = new Mapper(null);
 		reducer = new Reducer(null);
+		mapTimeout = 0;
+		reduceTimeout = 0;
 
-		//TODO handle errors/exceptions more cleanly (many are currently just printing stack trace)
+		//TODO handle random errors/exceptions more cleanly
 
 		participants = new HashMap<String, Integer>();
 		numPartsByPid = new HashMap<Integer, Integer>();
@@ -84,6 +87,10 @@ public class Master {
 								try {
 									// Load specified configurations
 									final ConfigLoader configLoader = new ConfigLoader(args[1]);
+									mapper = new Mapper(configLoader.getMapFn());
+									reducer = new Reducer(configLoader.getReduceFn());
+									mapTimeout = configLoader.getMapTimeoutSec()*1000;
+									reduceTimeout = configLoader.getReduceTimeoutSec()*1000;
 
 									System.out.println("The PID for this MapReduce process is: "+pid);
 
@@ -150,60 +157,115 @@ public class Master {
 		commandThread.start();
 	}
 
-	public static List<Partition<MRKeyVal>> coordinateMap(final int pid, int partitionSize, List<Connection> connections, String infile){
+	public static List<Partition<MRKeyVal>> coordinateMap(final int pid, List<Connection> connections, List<Partition<String>> input){
 		final List<Partition<MRKeyVal>> mappedParts = new ArrayList<Partition<MRKeyVal>>();
-		final List<Thread> threads = new ArrayList<Thread>();
+		final Map<Connection, Integer> connIdx = new HashMap<Connection, Integer>();
+		final Map<Connection, Thread> threadsByConn = new HashMap<Connection, Thread>();
+		Map<Integer, List<Partition<String>>> partsByIdx = new HashMap<Integer, List<Partition<String>>>();
+		
 		try {
-			//create partitions
-			//TODO use correct input file location/name!
-			List<Partition<String>> input = Partition.fileToPartitions(infile, partitionSize);
 			//disperse partitions to participants
-			int i = 0;
-			for (final Connection connection : connections){
-				final List<Partition<String>> parts = new ArrayList<Partition<String>>();
-				parts.add(input.get(i));
+			int j = 0;
+			for(Partition<String> part : input){
+				List<Partition<String>> parts;
+				if(partsByIdx.containsKey(j%(connections.size()))){
+					parts = partsByIdx.get(j%(connections.size()));
+				}
+				else{
+					parts = new ArrayList<Partition<String>>();
+				}
+				parts.add(part);
+				partsByIdx.put(j%(connections.size()), parts);
+				
+				j++;
+			}
+			
+			//Send map commands to participants
+			final List<Partition<String>> failedParts = new ArrayList<Partition<String>>();
+			final List<Connection> toRemove = new ArrayList<Connection>();
+			//int i = 0;
+			//for (final Connection connection : connections){
+			for(int i = 0; i < connections.size(); i++){
+				final Connection connection = connections.get(i);
+				//final List<Partition<String>> parts = new ArrayList<Partition<String>>();
+				//parts.add(input.get(i));
+				final List<Partition<String>> parts = partsByIdx.get(i);
 				Thread mapComThread = new Thread(new Runnable() {
 					@Override
 					public void run() {
 						MapCommand mapCom = new MapCommand(parts, pid, mapper);
 						try {
 							connection.getOutputStream().writeObject(mapCom);
-							// TODO handle timeout for acknowledge/done!
 							MapAcknowledge mapAck = (MapAcknowledge)connection.getInputStream().readObject();
 							MapDone mapDone = (MapDone)connection.getInputStream().readObject();
-							mappedParts.addAll(mapDone.getKeyValPartitions());
 							if(!mapDone.succeeded()){
-								// TODO handle failure of a mapper
+								//Mapper failed: remove connection from list, store failed partitions, do later
+								toRemove.add(connection);
+								failedParts.addAll(parts);
+							}
+							else{
+								if(Thread.interrupted()){
+									return;
+								}
+								mappedParts.addAll(mapDone.getKeyValPartitions());
 							}
 						} catch (Exception e) {
-							e.printStackTrace();
+							//Mapper failed: remove connection from list, store failed partitions, do later
+							toRemove.add(connection);
+							failedParts.addAll(parts);
 						}
 					}
 				});
-				threads.add(mapComThread);
+				threadsByConn.put(connection, mapComThread);
+				connIdx.put(connection, i);
 				mapComThread.start();
 				i++;
 			}
+			
+			for (Connection conn : connections) {
+				Thread thread = threadsByConn.get(conn);
+				try {
+					thread.join(mapTimeout);
+					
+					if (thread.isAlive()){
+						//Mapper timed out; interrupt thread, remove connection, store failed partitions
+						thread.interrupt();
+						toRemove.add(conn);
+						failedParts.addAll(partsByIdx.get(connIdx.get(conn)));
+					}
+					else{
+						partsDoneByPid.put(pid, (partsDoneByPid.get(pid)+1));
+					}
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+			
+			//Retry any failures, remove bad connections from list
+			if(!toRemove.isEmpty()){
+				for(Connection connection : toRemove){
+					connections.remove(connection);
+				}
+				if(!failedParts.isEmpty()){
+					List<Partition<MRKeyVal>> retriedResults = coordinateMap(pid, connections, failedParts);
+					mappedParts.addAll(retriedResults);
+				}
+			}
+			
+			connections = new ArrayList<Connection>();
+			return mappedParts;
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		//TODO retry any failures
-		for (Thread thread : threads) {
-			try {
-				thread.join();
-				partsDoneByPid.put(pid, (partsDoneByPid.get(pid)+1));
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
-		connections = new ArrayList<Connection>();
-		return mappedParts;
+		
+		return null;
 	}
 
 	public static List<Partition<MRKeyVal>> coordinateReduce(final int pid, SortedMap<String, List<Partition<MRKeyVal>>> sortedParts, List<Connection> connections){
 		try {
 			final List<Partition<MRKeyVal>> reducedParts = new ArrayList<Partition<MRKeyVal>>();
-			final List<Thread> threads = new ArrayList<Thread>();
+			final Map<Connection, Thread> threadsByConn = new HashMap<Connection, Thread>();
+			final Map<Connection, Integer> connIdx = new HashMap<Connection, Integer>();
 			final Map<Integer, List<Partition<MRKeyVal>>> partsByIdx = new HashMap<Integer, List<Partition<MRKeyVal>>>();
 
 			// Iterate through all partitions, distribute to participants as evenly as possible
@@ -223,6 +285,8 @@ public class Master {
 			}
 			
 			//Send participants reduce commands with partitions defined above
+			final SortedMap<String, List<Partition<MRKeyVal>>> failedParts = new TreeMap<String, List<Partition<MRKeyVal>>>();
+			final List<Connection> toRemove = new ArrayList<Connection>();
 			for(int j = 0; j < connections.size(); j++){
 				if(!partsByIdx.containsKey(j)){
 					break;
@@ -237,54 +301,158 @@ public class Master {
 							ReduceCommand reduceCom = new ReduceCommand(parts, pid, reducer);
 							try {
 								connection.getOutputStream().writeObject(reduceCom);
-								// TODO handle timeout for acknowledge/done!
+								
 								ReduceAcknowledge reduceAck = (ReduceAcknowledge)connection.getInputStream().readObject();
 								ReduceDone reduceDone = (ReduceDone)connection.getInputStream().readObject();
 
 								if(!reduceDone.succeeded()){
-									// TODO handle failure of a reducer (remove connection from list, store failed partitions, do later)
+									//Reducer failed: remove connection from list, store failed partitions, do later
+									toRemove.add(connection);
+									for(int k = 0; k < parts.size(); k++){
+										Partition<MRKeyVal> tempPart = parts.get(k);
+										tempPart.openRead();
+										String key = tempPart.read().getKey();
+										tempPart.closeRead();
+										if(failedParts.containsKey(key)){
+											List<Partition<MRKeyVal>> storedFails = failedParts.get(key);
+											storedFails.add(tempPart);
+											failedParts.put(key, storedFails);
+										}
+										else{
+											List<Partition<MRKeyVal>> tempList = new ArrayList<Partition<MRKeyVal>>();
+											tempList.add(tempPart);
+											failedParts.put(key, tempList);
+										}
+									}
 								}
 								else{
 									// Extract partitions and load all
 									List<Partition<MRKeyVal>> reduced = reduceDone.getKeyValPartitions();
+									if(Thread.interrupted()){
+										return;
+									}
 									reducedParts.addAll(reduced);
 								}
 							} catch (Exception e) {
-								e.printStackTrace();
+								toRemove.add(connection);
+								for(int k = 0; k < parts.size(); k++){
+									Partition<MRKeyVal> tempPart = parts.get(k);
+									try {
+										tempPart.openRead();
+										String key = tempPart.read().getKey();
+										tempPart.closeRead();
+										if(failedParts.containsKey(key)){
+											List<Partition<MRKeyVal>> storedFails = failedParts.get(key);
+											storedFails.add(tempPart);
+											failedParts.put(key, storedFails);
+										}
+										else{
+											List<Partition<MRKeyVal>> tempList = new ArrayList<Partition<MRKeyVal>>();
+											tempList.add(tempPart);
+											failedParts.put(key, tempList);
+										}
+									} catch (IOException e1) {
+										e1.printStackTrace();
+									}
+								}
 							}
 						}
 					});
-					threads.add(reduceComThread);
+					threadsByConn.put(connection, reduceComThread);
+					connIdx.put(connection, j);
 					reduceComThread.start();
 				}
 			}
-			//TODO retry any failures, remove bad connections from list
-			for (Thread thread : threads) {
+			
+			//Join all threads
+			for (Connection conn : threadsByConn.keySet()){
+				Thread thread = threadsByConn.get(conn);
+				int m = connIdx.get(conn);
 				try {
-					thread.join();
-					partsDoneByPid.put(pid, (partsDoneByPid.get(pid)+1));
+					thread.join(reduceTimeout);
+					
+					//if thread is still alive after timeout period, interrupt thread and add partitions to retries
+					if(thread.isAlive()){
+						thread.interrupt();
+						toRemove.add(conn);
+						List<Partition<MRKeyVal>> parts = partsByIdx.get(m);
+						for(int k = 0; k < parts.size(); k++){
+							Partition<MRKeyVal> tempPart = parts.get(k);
+							try {
+								tempPart.openRead();
+								String key = tempPart.read().getKey();
+								tempPart.closeRead();
+								if(failedParts.containsKey(key)){
+									List<Partition<MRKeyVal>> storedFails = failedParts.get(key);
+									storedFails.add(tempPart);
+									failedParts.put(key, storedFails);
+								}
+								else{
+									List<Partition<MRKeyVal>> tempList = new ArrayList<Partition<MRKeyVal>>();
+									tempList.add(tempPart);
+									failedParts.put(key, tempList);
+								}
+							} catch (IOException e1) {
+								e1.printStackTrace();
+							}
+						}
+					}
+					else{
+						partsDoneByPid.put(pid, (partsDoneByPid.get(pid)+1));
+					}
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
 			}
+			//Retry any failures, remove bad connections from list
+			if(!toRemove.isEmpty()){
+				for(Connection connection : toRemove){
+					connections.remove(connection);
+				}
+				if(!failedParts.isEmpty()){
+					List<Partition<MRKeyVal>> retriedResults = coordinateReduce(pid, failedParts, connections);
+					reducedParts.addAll(retriedResults);
+				}
+			}
+			
 			//Perform final reduce, send to good connection
 			ReduceCommand reduceCom = new ReduceCommand(reducedParts, pid, reducer);
 			Connection connection = connections.get(0);
 			try {
 				connection.getOutputStream().writeObject(reduceCom);
-				// TODO handle timeout for acknowledge/done!
 				ReduceAcknowledge reduceAck = (ReduceAcknowledge)connection.getInputStream().readObject();
 				ReduceDone reduceDone = (ReduceDone)connection.getInputStream().readObject();
 				if(reduceDone.succeeded()){
 					return reduceDone.getKeyValPartitions();
 				}
 				else{
-					//try again on a different participant?
+					//try again on a different participant
+					connections.remove(connection);
+					for (Connection conn : connections){
+						conn.getOutputStream().writeObject(reduceCom);
+						ReduceAcknowledge ack = (ReduceAcknowledge)connection.getInputStream().readObject();
+						ReduceDone done = (ReduceDone)connection.getInputStream().readObject();
+						if(done.succeeded()){
+							return done.getKeyValPartitions();
+						}
+						connections.remove(conn);
+					}
+					System.out.println("Process "+pid+" Error: All connections failed before reduce was complete.");
+					return null;
 				}
 			} catch (Exception e) {
-				e.printStackTrace();
+				for (Connection conn : connections){
+					conn.getOutputStream().writeObject(reduceCom);
+					ReduceAcknowledge ack = (ReduceAcknowledge)connection.getInputStream().readObject();
+					ReduceDone done = (ReduceDone)connection.getInputStream().readObject();
+					if(done.succeeded()){
+						return done.getKeyValPartitions();
+					}
+					connections.remove(conn);
+				}
+				System.out.println("Process "+pid+" Error: All connections failed before reduce was complete.");
+				return null;
 			}
-			//TODO retry on another participant if this failed.
 		} catch (Exception e1) {
 			e1.printStackTrace();
 		}
@@ -317,7 +485,8 @@ public class Master {
 			partsDoneByPid.put(pid, 0);
 
 			//map
-			List<Partition<MRKeyVal>> mappedParts = coordinateMap(pid, configLoader.getPartitionSize(), connections, configLoader.getInputFile().getPath());
+			List<Partition<String>> input = Partition.fileToPartitions(configLoader.getInputFile().getPath(), configLoader.getPartitionSize());
+			List<Partition<MRKeyVal>> mappedParts = coordinateMap(pid, connections, input);
 			mapDone.add(pid);
 			connectionsByPid.remove(pid);
 
@@ -360,6 +529,7 @@ public class Master {
 			}
 			if (connectionsByPid.containsKey(pid)){
 				List<Connection> connections = connectionsByPid.get(pid);
+				final List<Connection> failures = new ArrayList<Connection>();
 				for (final Connection connection : connections){
 					Thread stopThread = new Thread(new Runnable() {
 						@Override
@@ -368,7 +538,10 @@ public class Master {
 							try {
 								connection.getOutputStream().writeObject(stopCom);
 								StopDone done = (StopDone) connection.getInputStream().readObject();
-								//TODO check for errors in this; timeout, not done, etc.
+								if(!done.succeeded()){
+									System.out.println("Process "+pid+" Error: Stopping failed on a participant.");
+									failures.add(connection);
+								}
 							} catch (Exception e) {
 								e.printStackTrace();
 							}
@@ -384,7 +557,12 @@ public class Master {
 						e.printStackTrace();
 					}
 				}
-				stopped = true;
+				if(failures.isEmpty()){
+					stopped = true;
+				}
+				else{
+					stopped = false;
+				}
 				break;
 			}
 			else{
