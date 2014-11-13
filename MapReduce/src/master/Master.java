@@ -98,9 +98,9 @@ public class Master {
 									Thread startThread = new Thread(new Runnable() {
 										@Override
 										public void run() {
-											System.out.println("Process "+threadPid+": Starting MapReduce with input file "+configLoader.getInputFile());
+											System.out.println("Process "+threadPid+": Starting MapReduce with input file "+configLoader.getInputFile().getPath());
 											startMapReduce(threadPid, configLoader);
-											System.out.println("Process "+threadPid+": MapReduce complete! Results written to "+configLoader.getOutputFile());
+											System.out.println("Process "+threadPid+": MapReduce complete! Results written to "+configLoader.getNumReducers()+" numbered files starting at "+configLoader.getOutputFile().getPath()+"_0");
 										}
 									});
 									startThread.start();
@@ -261,10 +261,11 @@ public class Master {
 		return null;
 	}
 
-	public static List<Partition<MRKeyVal>> coordinateReduce(final int pid, SortedMap<String, List<Partition<MRKeyVal>>> sortedParts, List<Connection> connections){
+	public static boolean coordinateReduce(final int pid, SortedMap<String, List<Partition<MRKeyVal>>> sortedParts, List<Connection> connections, final ConfigLoader configLoader){
+		boolean success = true;
 		try {
-			//TODO each reducer writes to its own output file instead of returning to one output
-			//TODO config specifies number of reducers, just pick that many
+			int numReducers = Math.min(configLoader.getNumReducers(), connections.size());
+			
 			final List<Partition<MRKeyVal>> reducedParts = new ArrayList<Partition<MRKeyVal>>();
 			final Map<Connection, Thread> threadsByConn = new HashMap<Connection, Thread>();
 			final Map<Connection, Integer> connIdx = new HashMap<Connection, Integer>();
@@ -274,14 +275,14 @@ public class Master {
 			int i = 0;
 			for(String key : sortedParts.keySet()){
 				SortedMap<String,List<Partition<MRKeyVal>>> storedSort;
-				if(partsByIdx.containsKey(i%(connections.size()))){
-					storedSort = partsByIdx.get(i%(connections.size()));
+				if(partsByIdx.containsKey(i%numReducers)){
+					storedSort = partsByIdx.get(i%numReducers);
 				}
 				else{
 					storedSort = new TreeMap<String,List<Partition<MRKeyVal>>>();
 				}
 				storedSort.put(key, sortedParts.get(key));
-				partsByIdx.put(i%(connections.size()), storedSort);
+				partsByIdx.put(i%numReducers, storedSort);
 				
 				i++;
 			}
@@ -289,13 +290,14 @@ public class Master {
 			//Send participants reduce commands with partitions defined above
 			final SortedMap<String, List<Partition<MRKeyVal>>> failedParts = new TreeMap<String, List<Partition<MRKeyVal>>>();
 			final List<Connection> toRemove = new ArrayList<Connection>();
-			for(int j = 0; j < connections.size(); j++){
+			for(int j = 0; j < numReducers; j++){
 				if(!partsByIdx.containsKey(j)){
 					break;
 				}
 				else{
 					final Connection connection = connections.get(j);
 					final SortedMap<String,List<Partition<MRKeyVal>>> parts = partsByIdx.get(j);
+					final int tempJ = j;
 					//Sends participant j a reduce command, handles results
 					Thread reduceComThread = new Thread(new Runnable() {
 						@Override
@@ -318,7 +320,7 @@ public class Master {
 									if(Thread.interrupted()){
 										return;
 									}
-									reducedParts.addAll(reduced);
+									Partition.partitionsToFile(reduced, configLoader.getOutputFile().getPath()+"_"+tempJ, DEFAULT_OUTPUT_DELIM);
 								}
 							} catch (Exception e) {
 								//Reducer failed somewhere, remove connection from list, store failed partitions
@@ -360,15 +362,15 @@ public class Master {
 					connections.remove(connection);
 				}
 				if(!failedParts.isEmpty()){
-					List<Partition<MRKeyVal>> retriedResults = coordinateReduce(pid, failedParts, connections);
-					reducedParts.addAll(retriedResults);
+					success = coordinateReduce(pid, failedParts, connections, configLoader);
 				}
 			}
 			
 		} catch (Exception e1) {
 			e1.printStackTrace();
+			success = false;
 		}
-		return null;
+		return success;
 	}
 
 	public static List<Connection> connectToParticipants(){
@@ -413,12 +415,15 @@ public class Master {
 			partsDoneByPid.put(pid, 0);
 
 			//reduce
-			List<Partition<MRKeyVal>> reduced = coordinateReduce(pid, sortedParts, connections);
-			reduceDone.add(pid);
-
-			//write to output file
-			Partition.partitionsToFile(reduced, configLoader.getOutputFile().getPath(), DEFAULT_OUTPUT_DELIM);
-			writtenToFile.add(pid);
+			boolean reduced = coordinateReduce(pid, sortedParts, connections, configLoader);
+			if (reduced){
+				reduceDone.add(pid);
+				writtenToFile.add(pid);
+			}
+			else{
+				System.out.println("Process "+pid+" Error: the reduce process failed to successfully reduce and write to the output files.");
+				return;
+			}
 
 		} catch (Exception e) {
 			e.printStackTrace();
