@@ -33,7 +33,7 @@ public class RemoteFile implements Serializable {
 		BufferedOutputStream fileOutStream = null;
 		try {
 
-			System.out.println("Sending request for file " + file + " to " + hostName + ":" + FileServer.PORT);
+			System.out.println("Sending request for file " + file.getName() + " to " + hostName + ":" + FileServer.PORT);
 
 			// Open socket to host machine
 			soc = new Socket(hostName, FileServer.PORT);
@@ -69,9 +69,7 @@ public class RemoteFile implements Serializable {
 
 	private void sendRequest(Socket soc) throws IOException {
 		// Generate partition request message
-		FileRequest req = new FileRequest(file.getName(), file.length());
-
-		// TODO times out if bad request?
+		FileRequest req = new FileRequest(file.getName(), fileByteSize);
 
 		// Send message
 		ObjectOutputStream objOutStream = new ObjectOutputStream(soc.getOutputStream());

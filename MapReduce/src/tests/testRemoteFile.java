@@ -34,6 +34,20 @@ public class testRemoteFile {
 		System.out.println(file.getFile().exists());
 		System.out.println(file.getFile().length());
 
+		// Test with empty file
+		file = new RemoteFile("tmp/testRemoteEmpty.txt", "localhost", (int)new File("resources/testRemoteEmpty.txt").length());
+		file.load();
+		file.getFile().deleteOnExit();
+		System.out.println(file.getFile().exists());
+		System.out.println(file.getFile().length());
+
+		// Test with missing
+		file = new RemoteFile("tmp/testRemoteMissing.txt", "localhost", 42);
+		file.load();
+		file.getFile().deleteOnExit();
+		System.out.println(file.getFile().exists());
+		System.out.println(file.getFile().length());
+
 	}
 
 }
