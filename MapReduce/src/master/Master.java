@@ -52,8 +52,6 @@ public class Master {
 		mapTimeout = 0;
 		reduceTimeout = 0;
 
-		//TODO handle random errors/exceptions more cleanly
-
 		participants = new HashMap<String, Integer>();
 		numPartsByPid = new HashMap<Integer, Integer>();
 		partsDoneByPid = new HashMap<Integer, Integer>();
@@ -237,7 +235,7 @@ public class Master {
 						partsDoneByPid.put(pid, (partsDoneByPid.get(pid)+1));
 					}
 				} catch (InterruptedException e) {
-					e.printStackTrace();
+					System.out.println("Process "+pid+" was interrupted while waiting for results from map participants.");
 				}
 			}
 			
@@ -255,6 +253,8 @@ public class Master {
 			connections = new ArrayList<Connection>();
 			return mappedParts;
 		} catch (Exception e) {
+			//All expected possible issues are handled above, this is a catch-all for any unexpected issues;
+			//it just prints out the stack trace so you can debug because this would only be an odd issue
 			e.printStackTrace();
 		}
 		
@@ -265,8 +265,6 @@ public class Master {
 		boolean success = true;
 		try {
 			int numReducers = Math.min(configLoader.getNumReducers(), connections.size());
-			
-			final List<Partition<MRKeyVal>> reducedParts = new ArrayList<Partition<MRKeyVal>>();
 			final Map<Connection, Thread> threadsByConn = new HashMap<Connection, Thread>();
 			final Map<Connection, Integer> connIdx = new HashMap<Connection, Integer>();
 			final Map<Integer, SortedMap<String,List<Partition<MRKeyVal>>>> partsByIdx = new HashMap<Integer, SortedMap<String,List<Partition<MRKeyVal>>>>();
@@ -353,7 +351,7 @@ public class Master {
 						partsDoneByPid.put(pid, (partsDoneByPid.get(pid)+1));
 					}
 				} catch (InterruptedException e) {
-					e.printStackTrace();
+					System.out.println("Process "+pid+" was interrupted while waiting for results from reduceparticipants.");
 				}
 			}
 			//Retry any failures, remove bad connections from list
@@ -367,6 +365,8 @@ public class Master {
 			}
 			
 		} catch (Exception e1) {
+			//All expected possible issues are handled above, this is a catch-all for any unexpected issues;
+			//it just prints out the stack trace so you can debug because this would only be an odd issue
 			e1.printStackTrace();
 			success = false;
 		}
@@ -383,7 +383,7 @@ public class Master {
 				ObjectInputStream in = new ObjectInputStream(connection.getInputStream());
 				connections.add(new Connection(connection, in, out));
 			} catch (IOException e) {
-				e.printStackTrace();
+				System.out.println("Master failed to connect to the following participant: "+host);
 			}
 		}
 		return connections;
@@ -401,6 +401,10 @@ public class Master {
 			//map
 			List<Partition<String>> input = Partition.fileToPartitions(configLoader.getInputFile().getPath(), configLoader.getPartitionSize());
 			List<Partition<MRKeyVal>> mappedParts = coordinateMap(pid, connections, input);
+			if(mappedParts.equals(null)){
+				System.out.println("Process "+pid+" Error: Map process failed, aborting...");
+				return;
+			}
 			mapDone.add(pid);
 			connectionsByPid.remove(pid);
 
@@ -426,6 +430,8 @@ public class Master {
 			}
 
 		} catch (Exception e) {
+			//All expected possible issues are handled above, this is a catch-all for any unexpected issues;
+			//it just prints out the stack trace so you can debug because this would only be an odd issue
 			e.printStackTrace();
 		}
 
@@ -460,6 +466,7 @@ public class Master {
 									failures.add(connection);
 								}
 							} catch (Exception e) {
+								//An error occurred with the connection to the participant, move on.
 								e.printStackTrace();
 							}
 						}
@@ -471,7 +478,7 @@ public class Master {
 					try {
 						thread.join();
 					} catch (InterruptedException e) {
-						e.printStackTrace();
+						System.out.println("Process "+pid+" Error: the thread to stop this process was interrupted while waiting for stop threads to finish.");
 					}
 				}
 				if(failures.isEmpty()){
@@ -486,7 +493,7 @@ public class Master {
 				try {
 					Thread.sleep(5000);
 				} catch (InterruptedException e) {
-					e.printStackTrace();
+					System.out.println("Process "+pid+" Error: the stop thread was interrupted while waiting for a clean stopping point");
 				}
 				attempt++;
 			}
