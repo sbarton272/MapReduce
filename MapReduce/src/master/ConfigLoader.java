@@ -45,7 +45,7 @@ public class ConfigLoader {
 	private final HashMap<String,String> userConfig = new HashMap<String,String>();
 	private ParticipantDetails lastParticipantRecorded;
 
-	public ConfigLoader(String filePath) throws IOException {
+	public ConfigLoader(String filePath) throws Exception {
 		File configFile = new File(filePath);
 		BufferedReader reader = new BufferedReader(new FileReader(configFile));
 		String line;
@@ -60,7 +60,7 @@ public class ConfigLoader {
 		reader.close();
 	}
 
-	private void setKeyVal(String key, String val) throws IOException {
+	private void setKeyVal(String key, String val) throws Exception {
 		String[] hostPort;
 
 		switch(key) {
@@ -79,23 +79,13 @@ public class ConfigLoader {
 			outputFile = new File(val);
 			break;
 		case STR_MAP_FN:
-			try {
-				mapFn = (MapFn) loadClass(val);
-			} catch (Exception e) {
-				e.printStackTrace();
-				System.out.println("Loading config: unable to load " + val);
-			}
+			mapFn = (MapFn) loadClass(val);
 			break;
 		case STR_MAP_TIMEOUT_SEC:
 			mapTimeoutSec = Integer.parseInt(val);
 			break;
 		case STR_REDUCE_FN:
-			try {
-				reduceFn = (ReduceFn) loadClass(val);
-			} catch (Exception e) {
-				e.printStackTrace();
-				System.out.println("Loading config: unable to load " + val);
-			}
+			reduceFn = (ReduceFn) loadClass(val);
 			break;
 		case STR_REDUCE_TIMEOUT_SEC:
 			reduceTimeoutSec = Integer.parseInt(val);
