@@ -63,6 +63,10 @@ public class Master {
 		reduceDone = new ArrayList<Integer>();
 		writtenToFile = new ArrayList<Integer>();
 
+        // Useful startup messages
+        System.out.println("Welcome to MapReduce :)");
+        System.out.println(HELP_MSG);
+
 		//constantly accept commands from the command line
 		final Scanner scanner = new Scanner(System.in);
 		Thread commandThread = new Thread(new Runnable() {
@@ -460,6 +464,9 @@ public class Master {
 				System.out.println("Process "+pid+" Error: the reduce process failed to successfully reduce and write to the output files.");
 				return;
 			}
+
+            // Clean-up input partitions
+            Partition.deleteAll(input);
 
 		} catch (Exception e) {
 			//All expected possible issues are handled above, this is a catch-all for any unexpected issues;
