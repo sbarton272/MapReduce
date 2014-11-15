@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
-import fileIO.Partition;
+
 import mapreduce.MRKeyVal;
 import mapreduce.Mapper;
 import mapreduce.Reducer;
@@ -20,17 +20,25 @@ import messages.ReduceAcknowledge;
 import messages.ReduceCommand;
 import messages.ReduceDone;
 import messages.StopDone;
+import fileIO.Partition;
 
 public class Participant {
+	private static int serverPort = 5050;
 	private static Map<Integer, Thread> mapThreadsByPid;
 	private static Map<Integer, Thread> reduceThreadsByPid;
 
 	public static void main(String[] args) {
+		if (args.length == 2) {
+			serverPort = Integer.parseInt(args[0]);
+		}
+
+		System.out.println("Starting participant on port " + serverPort);
+
 		try{
 			mapThreadsByPid = new HashMap<Integer, Thread>();
 			reduceThreadsByPid = new HashMap<Integer, Thread>();
-			
-			final ServerSocket masterSocket = new ServerSocket(5050);
+
+			final ServerSocket masterSocket = new ServerSocket(serverPort);
 			final Socket connection = masterSocket.accept();
 			System.out.println("accepted master");
 			final ObjectOutputStream out = new ObjectOutputStream(connection.getOutputStream());
@@ -40,6 +48,7 @@ public class Participant {
 				System.out.println("got command: "+command.getType());
 				if(command.getType().equals("map")){
 					Thread mapThread = new Thread(new Runnable(){
+						@Override
 						public void run(){
 							try {
 								MapAcknowledge mapAck = new MapAcknowledge(command.getStringPartitions(), command.getPid());
@@ -75,6 +84,7 @@ public class Participant {
 				else if(command.getType().equals("reduce")){
 					final ReduceCommand redCom = (ReduceCommand) command;
 					Thread reduceThread = new Thread(new Runnable(){
+						@Override
 						public void run(){
 							try {
 								ReduceAcknowledge reduceAck = new ReduceAcknowledge(redCom.getReduceParts(), redCom.getPid());
@@ -109,6 +119,7 @@ public class Participant {
 				}
 				else{
 					Thread stopThread = new Thread(new Runnable(){
+						@Override
 						public void run(){
 							stopMap(command.getPid());
 							stopReduce(command.getPid());
@@ -135,7 +146,7 @@ public class Participant {
 			return;
 		}
 	}
-	
+
 	public static ResultPair runMap(List<Partition<String>> partitions, Mapper mapper){
 		try {
 			return new ResultPair(mapper.map(partitions, partitions.get(0).getMaxSize()),true);
@@ -144,7 +155,7 @@ public class Participant {
 			return new ResultPair(null, false);
 		}
 	}
-	
+
 	public static void stopMap(int pid){
 		if(mapThreadsByPid.containsKey(pid)){
 			Thread mapThread = mapThreadsByPid.get(pid);
@@ -157,7 +168,7 @@ public class Participant {
 			}
 		}
 	}
-	
+
 	public static ResultPair runReduce(SortedMap<String,List<Partition<MRKeyVal>>> partitions, Reducer reducer){
 		try {
 			String tempKey = (String) partitions.keySet().toArray()[0];
@@ -167,7 +178,7 @@ public class Participant {
 			return new ResultPair(null, false);
 		}
 	}
-	
+
 	public static void stopReduce(int pid){
 		if(reduceThreadsByPid.containsKey(pid)){
 			Thread reduceThread = reduceThreadsByPid.get(pid);
