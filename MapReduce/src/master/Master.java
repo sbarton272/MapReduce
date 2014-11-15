@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.SortedMap;
 import java.util.TreeMap;
+
 import mapreduce.MRKeyVal;
 import mapreduce.Mapper;
 import mapreduce.Reducer;
@@ -110,8 +111,8 @@ public class Master {
 									startThread.start();
 									pid++;
 
-								} catch (IOException e) {
-									System.out.println("Invalid configurations");
+								} catch (Exception e) {
+									System.out.println("Invalid configurations cannot run");
 								}
 
 							} else if ((args.length == 2) && args[0].equals("status")){
@@ -166,7 +167,7 @@ public class Master {
 		final Map<Connection, Integer> connIdx = new HashMap<Connection, Integer>();
 		final Map<Connection, Thread> threadsByConn = new HashMap<Connection, Thread>();
 		Map<Integer, List<Partition<String>>> partsByIdx = new HashMap<Integer, List<Partition<String>>>();
-		
+
 		try {
 			//disperse partitions to participants
 			int j = 0;
@@ -180,10 +181,10 @@ public class Master {
 				}
 				parts.add(part);
 				partsByIdx.put(j%(connections.size()), parts);
-				
+
 				j++;
 			}
-			
+
 			//Send map commands to participants
 			final List<Partition<String>> failedParts = new ArrayList<Partition<String>>();
 			final List<Connection> toRemove = new ArrayList<Connection>();
@@ -225,12 +226,12 @@ public class Master {
 				mapComThread.start();
 				i++;
 			}
-			
+
 			for (Connection conn : connections) {
 				Thread thread = threadsByConn.get(conn);
 				try {
 					thread.join(mapTimeout);
-					
+
 					if (thread.isAlive()){
 						//Mapper timed out; interrupt thread, remove connection, store failed partitions
 						thread.interrupt();
@@ -244,7 +245,7 @@ public class Master {
 					System.out.println("Process "+pid+" was interrupted while waiting for results from map participants.");
 				}
 			}
-			
+
 			//Retry any failures, remove bad connections from list
 			if(!toRemove.isEmpty()){
 				for(Connection connection : toRemove){
@@ -255,7 +256,7 @@ public class Master {
 					mappedParts.addAll(retriedResults);
 				}
 			}
-			
+
 			connections = new ArrayList<Connection>();
 			return mappedParts;
 		} catch (Exception e) {
@@ -263,7 +264,7 @@ public class Master {
 			//it just prints out the stack trace so you can debug because this would only be an odd issue
 			e.printStackTrace();
 		}
-		
+
 		return null;
 	}
 
@@ -287,10 +288,10 @@ public class Master {
 				}
 				storedSort.put(key, sortedParts.get(key));
 				partsByIdx.put(i%numReducers, storedSort);
-				
+
 				i++;
 			}
-			
+
 			//Send participants reduce commands with partitions defined above
 			final SortedMap<String, List<Partition<MRKeyVal>>> failedParts = new TreeMap<String, List<Partition<MRKeyVal>>>();
 			final List<Connection> toRemove = new ArrayList<Connection>();
@@ -309,7 +310,7 @@ public class Master {
 							ReduceCommand reduceCom = new ReduceCommand(parts, pid, reducer);
 							try {
 								connection.getOutputStream().writeObject(reduceCom);
-								
+
 								ReduceAcknowledge reduceAck = (ReduceAcknowledge)connection.getInputStream().readObject();
 								ReduceDone reduceDone = (ReduceDone)connection.getInputStream().readObject();
 
@@ -338,14 +339,14 @@ public class Master {
 					reduceComThread.start();
 				}
 			}
-			
+
 			//Join all threads
 			for (Connection conn : threadsByConn.keySet()){
 				Thread thread = threadsByConn.get(conn);
 				int m = connIdx.get(conn);
 				try {
 					thread.join(reduceTimeout);
-					
+
 					//if thread is still alive after timeout period, interrupt thread and add partitions to retries
 					if(thread.isAlive()){
 						thread.interrupt();
@@ -369,7 +370,7 @@ public class Master {
 					success = coordinateReduce(pid, failedParts, connections, configLoader);
 				}
 			}
-			
+
 		} catch (Exception e1) {
 			//All expected possible issues are handled above, this is a catch-all for any unexpected issues;
 			//it just prints out the stack trace so you can debug because this would only be an odd issue
