@@ -28,7 +28,7 @@ public class Participant {
 	private static Map<Integer, Thread> reduceThreadsByPid;
 
 	public static void main(String[] args) {
-		if (args.length == 2) {
+        if (args.length == 1) {
 			serverPort = Integer.parseInt(args[0]);
 		}
 
