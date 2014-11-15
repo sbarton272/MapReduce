@@ -9,13 +9,15 @@ public abstract class Message implements Serializable {
 	private static final long serialVersionUID = -3700784652137494470L;
 	private List<Partition<String>> stringPartitions;
 	private List<Partition<MRKeyVal>> keyValPartitions;
+	private int partitionSize;
 	private final int pid;
 	private final String type;
 
-	public Message(List<Partition<String>> parts, int id, String t){
+	public Message(List<Partition<String>> parts, int s, int id, String t){
 		stringPartitions = parts;
 		pid = id;
 		type = t;
+		partitionSize = s;
 	}
 
 	public Message(int id, List<Partition<MRKeyVal>> parts, String t){
@@ -34,6 +36,10 @@ public abstract class Message implements Serializable {
 
 	public List<Partition<MRKeyVal>> getKeyValPartitions(){
 		return keyValPartitions;
+	}
+
+	public int getPartitionSize() {
+		return partitionSize;
 	}
 
 	public int getPid(){

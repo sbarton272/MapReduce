@@ -21,10 +21,6 @@ import mapreduce.MRKeyVal;
 
 public class Partition<T> extends RemoteFile {
 
-	// TODO delete state?
-	// TODO may be able to implement without serializable object stuff
-	// TODO too much code here
-
 	private static final long serialVersionUID = 2184080295517094612L;
 	private static final String TMP_DIR = FileServer.DEFAULT_REMOTE_FILE_DIR;
 	private static final String EXT = ".partition";
@@ -51,6 +47,9 @@ public class Partition<T> extends RemoteFile {
 		// Make tmp directory if not present
 		File tmpDir = new File(TMP_DIR);
 		tmpDir.mkdir();
+
+		// Make partition a temporary file
+		this.file.deleteOnExit();
 	}
 
 	//------------------------------------------

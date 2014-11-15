@@ -11,8 +11,8 @@ public abstract class Command extends Message {
 	private Mapper mapper;
 	private Reducer reducer;
 
-	public Command(List<Partition<String>> parts, int id, String t, Mapper map){
-		super(parts, id, t);
+	public Command(List<Partition<String>> parts, int partSize, int id, String t, Mapper map){
+		super(parts, partSize, id, t);
 		mapper = map;
 	}
 

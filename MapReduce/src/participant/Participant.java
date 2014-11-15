@@ -9,8 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
-import fileIO.FileServer;
-import fileIO.Partition;
+
 import mapreduce.MRKeyVal;
 import mapreduce.Mapper;
 import mapreduce.Reducer;
@@ -21,6 +20,8 @@ import messages.ReduceAcknowledge;
 import messages.ReduceCommand;
 import messages.ReduceDone;
 import messages.StopDone;
+import fileIO.FileServer;
+import fileIO.Partition;
 
 public class Participant {
 	private static int serverPort = 5050;
@@ -28,7 +29,7 @@ public class Participant {
 	private static Map<Integer, Thread> reduceThreadsByPid;
 
 	public static void main(String[] args) {
-        if (args.length == 1) {
+		if (args.length == 1) {
 			serverPort = Integer.parseInt(args[0]);
 		}
 
@@ -38,7 +39,7 @@ public class Participant {
 			//start file server
 			FileServer fileServer = new FileServer("/tmp");
 			fileServer.start();
-			
+
 			mapThreadsByPid = new HashMap<Integer, Thread>();
 			reduceThreadsByPid = new HashMap<Integer, Thread>();
 
@@ -55,7 +56,7 @@ public class Participant {
 						@Override
 						public void run(){
 							try {
-								MapAcknowledge mapAck = new MapAcknowledge(command.getStringPartitions(), command.getPid());
+								MapAcknowledge mapAck = new MapAcknowledge(command.getStringPartitions(), command.getPartitionSize(), command.getPid());
 								if(Thread.interrupted()){
 									return;
 								}
@@ -64,7 +65,7 @@ public class Participant {
 								if(Thread.interrupted()){
 									return;
 								}
-								ResultPair mapPair = runMap(command.getStringPartitions(), command.getMapper());
+								ResultPair mapPair = runMap(command.getStringPartitions(), command.getPartitionSize(), command.getMapper());
 								if (mapPair.succeeded()){
 									List<Partition<MRKeyVal>> mappedParts = mapPair.getPartitions();
 									if(Thread.interrupted()){
@@ -103,7 +104,7 @@ public class Participant {
 								if(Thread.interrupted()){
 									return;
 								}
-								ResultPair reducePair = runReduce(redCom.getReduceParts(), redCom.getReducer());
+								ResultPair reducePair = runReduce(redCom.getReduceParts(), redCom.getPartitionSize(), redCom.getReducer());
 								if(reducePair.succeeded()){
 									List<Partition<MRKeyVal>> reducedParts = reducePair.getPartitions();
 									if(Thread.interrupted()){
@@ -157,10 +158,10 @@ public class Participant {
 		}
 	}
 
-	public static ResultPair runMap(List<Partition<String>> partitions, Mapper mapper){
+	public static ResultPair runMap(List<Partition<String>> partitions, int partitionSize, Mapper mapper){
 		try {
 			System.out.println("mapping");
-			return new ResultPair(mapper.map(partitions, partitions.get(0).getMaxSize()),true);
+			return new ResultPair(mapper.map(partitions, partitionSize) ,true);
 		} catch (IOException e) {
 			//Map failed, return appropriate values
 			System.out.println("MAP FAILED");
@@ -182,11 +183,10 @@ public class Participant {
 		}
 	}
 
-	public static ResultPair runReduce(SortedMap<String,List<Partition<MRKeyVal>>> partitions, Reducer reducer){
+	public static ResultPair runReduce(SortedMap<String,List<Partition<MRKeyVal>>> partitions, int partitionSize, Reducer reducer){
 		try {
 			System.out.println("reducing...");
-			String tempKey = (String) partitions.keySet().toArray()[0];
-			return new ResultPair(reducer.reduce(partitions, partitions.get(tempKey).get(0).getMaxSize()),true);
+			return new ResultPair(reducer.reduce(partitions, partitionSize),true);
 		} catch (IOException e) {
 			System.out.println("REDUCE FAILED");
 			//Reduce failed, return appropriate values

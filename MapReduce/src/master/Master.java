@@ -64,14 +64,14 @@ public class Master {
 		sortDone = new ArrayList<Integer>();
 		reduceDone = new ArrayList<Integer>();
 		writtenToFile = new ArrayList<Integer>();
-		
+
 		//start file server
 		FileServer fileServer = new FileServer("/tmp");
 		fileServer.start();
 
-        // Useful startup messages
-        System.out.println("Welcome to MapReduce :)");
-        System.out.println(HELP_MSG);
+		// Useful startup messages
+		System.out.println("Welcome to MapReduce :)");
+		System.out.println(HELP_MSG);
 
 		//constantly accept commands from the command line
 		final Scanner scanner = new Scanner(System.in);
@@ -175,7 +175,7 @@ public class Master {
 		commandThread.start();
 	}
 
-	public static List<Partition<MRKeyVal>> coordinateMap(final int pid, List<Connection> connections, List<Partition<String>> input){
+	public static List<Partition<MRKeyVal>> coordinateMap(final int pid, List<Connection> connections, List<Partition<String>> input, final int partitionSize){
 		final List<Partition<MRKeyVal>> mappedParts = new ArrayList<Partition<MRKeyVal>>();
 		final Map<Connection, Integer> connIdx = new HashMap<Connection, Integer>();
 		final Map<Connection, Thread> threadsByConn = new HashMap<Connection, Thread>();
@@ -215,7 +215,7 @@ public class Master {
 				Thread mapComThread = new Thread(new Runnable() {
 					@Override
 					public void run() {
-						MapCommand mapCom = new MapCommand(parts, pid, mapper);
+						MapCommand mapCom = new MapCommand(parts, partitionSize, pid, mapper);
 						try {
 							System.out.println("mapping in a thread!");
 							connection.getOutputStream().writeObject(mapCom);
@@ -273,7 +273,7 @@ public class Master {
 					connections.remove(connection);
 				}
 				if(!failedParts.isEmpty()){
-					List<Partition<MRKeyVal>> retriedResults = coordinateMap(pid, connections, failedParts);
+					List<Partition<MRKeyVal>> retriedResults = coordinateMap(pid, connections, failedParts, partitionSize);
 					mappedParts.addAll(retriedResults);
 				}
 			}
@@ -464,7 +464,7 @@ public class Master {
 			System.out.println("mapping");
 			List<Partition<String>> input = Partition.fileToPartitions(configLoader.getInputFile().getPath(), configLoader.getPartitionSize());
 			System.out.println("sending map "+connections.size()+" connections");
-			List<Partition<MRKeyVal>> mappedParts = coordinateMap(pid, connections, input);
+			List<Partition<MRKeyVal>> mappedParts = coordinateMap(pid, connections, input, configLoader.getPartitionSize());
 			if(mappedParts.equals(null)){
 				System.out.println("Process "+pid+" Error: Map process failed, aborting...");
 				return false;
@@ -503,9 +503,6 @@ public class Master {
 				System.out.println("Process "+pid+" Error: the reduce process failed to successfully reduce and write to the output files.");
 				return false;
 			}
-
-            // Clean-up input partitions
-            Partition.deleteAll(input);
 
 			return true;
 

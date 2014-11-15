@@ -42,7 +42,6 @@ public class testBasics {
 			System.out.println(p1.read());
 			p1.closeRead();
 			System.out.println(p1.readAllContents());
-			p1.delete();
 
 		}catch (Exception e) {
 			System.out.println("Ooops");
@@ -69,19 +68,15 @@ public class testBasics {
 			// Print results
 			Partition<MRKeyVal> p4 = sorted.get("a").get(0);
 			System.out.println(p4.readAllContents());
-			p4.delete();
 
 			Partition<MRKeyVal> p5 = sorted.get("c").get(0);
 			System.out.println(p5.readAllContents());
-			p5.delete();
 
 			Partition<MRKeyVal> p6 = sorted.get("g").get(0);
 			System.out.println(p6.readAllContents());
-			p6.delete();
 
 			Partition<MRKeyVal> p7 = sorted.get("z").get(0);
 			System.out.println(p7.readAllContents());
-			p7.delete();
 
 		} catch (IOException e) {
 			System.out.println("Ooops");
@@ -117,17 +112,11 @@ public class testBasics {
 			Partition.partitionsToFile(reduced, outFile, "-");
 			List<Partition<String>> output = Partition.fileToPartitions(outFile, partitionSize);
 
-			// Print all partitions and delete them
+			// Print all partitions
 			for(Partition<String> p : output) {
 				System.out.print(p.readAllContents());
-				p.delete();
 			}
 			System.out.println();
-
-			// Remove reduced
-			for(Partition<MRKeyVal> p : reduced) {
-				p.delete();
-			}
 
 		} catch (IOException e) {
 			System.out.println("Ooops");
