@@ -29,42 +29,36 @@ public class RemoteFile implements Serializable {
 
 	public void load() throws IOException {
 
-		Socket soc = null;
-		BufferedOutputStream fileOutStream = null;
-		try {
+		System.out.println("Sending request for file " + file.getName() + " to " + hostName + ":" + FileServer.PORT);
 
-			System.out.println("Sending request for file " + file.getName() + " to " + hostName + ":" + FileServer.PORT);
+		// Open socket to host machine
+		Socket soc = new Socket(hostName, FileServer.PORT);
 
-			// Open socket to host machine
-			soc = new Socket(hostName, FileServer.PORT);
+		// Send request for file
+		sendRequest(soc);
 
-			// Send request for file
-			sendRequest(soc);
+		// Get file stream
+		BufferedOutputStream fileOutStream = new BufferedOutputStream(new FileOutputStream(file));
 
-			// Get file stream
-			fileOutStream = new BufferedOutputStream(new FileOutputStream(file));
+		// Read in file over stream and write to disk
+		getFile(soc, fileOutStream);
 
-			// Read in file over stream and write to disk
-			getFile(soc, fileOutStream);
+		// Update host machine to this machine as this partition changes the local copy
+		hostName = InetAddress.getLocalHost().getHostName();
 
-			// Update host machine to this machine as this partition changes the local copy
-			hostName = InetAddress.getLocalHost().getHostName();
+		System.out.println("Loaded remote file " + file.getPath());
 
-			System.out.println("Loaded remote file " + file.getPath());
+		// Close streams and socket
+		fileOutStream.close();
+		soc.close();
 
-		} catch (IOException e) {
-
-			e.printStackTrace();
-
-		} finally {
-			// Close streams and socket
-			if (fileOutStream != null) {
-				fileOutStream.close();
-			}
-			if (soc != null) {
-				soc.close();
-			}
+		// Check if file is size zero, in which case delete and throw an exception to signal
+		//  that the file contains no data
+		if (file.length() == 0) {
+			file.delete();
+			throw(new RemoteFileException("Remote file was not loaded (zero size)"));
 		}
+
 	}
 
 	private void sendRequest(Socket soc) throws IOException {
@@ -79,7 +73,7 @@ public class RemoteFile implements Serializable {
 	private void getFile(Socket soc, BufferedOutputStream fileOutStream) throws IOException {
 
 		if (fileByteSize <= 0) {
-			System.out.println("Remote file has no contents so not loading");
+			// Remote file has no contents so not loading
 			return;
 		}
 
@@ -92,7 +86,7 @@ public class RemoteFile implements Serializable {
 		while( (nBytesRead = inStream.read(bytes, current, (bytes.length - current))) > -1) {
 			current += nBytesRead;
 		}
-		fileOutStream.write(bytes, 0, bytes.length);
+		fileOutStream.write(bytes, 0, current);
 		fileOutStream.flush();
 
 	}
