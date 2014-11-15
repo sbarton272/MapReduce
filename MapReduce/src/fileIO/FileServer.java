@@ -74,12 +74,8 @@ public class FileServer extends Thread {
 			reqStream = new ObjectInputStream(soc.getInputStream());
 			FileRequest req = (FileRequest) reqStream.readObject();
 
-			System.out.println("FileServer: Recieved request for " + req.getFileName() + ":" + req.getByteSize());
-
 			// Find file
 			File requestedFile = new File(remoteFileDir, req.getFileName());
-
-			System.out.println("FileServer: Requested file available " + requestedFile + ":" + requestedFile.length());
 
 			// Ensure file exists, length is same as request and that it is a non-empty file (cannot transmit empty file)
 			byte[] fileBuf = new byte[(int) requestedFile.length()];
@@ -92,15 +88,12 @@ public class FileServer extends Thread {
 				fileStream = new BufferedInputStream(new FileInputStream(requestedFile));
 				fileStream.read(fileBuf, 0, fileBuf.length);
 				writeLen = fileBuf.length;
-				System.out.println("FileServer: Read file to buf " + req.getFileName());
 			}
 
 			// Write buffer over socket, writes nothing if error
 			OutputStream outputStream = soc.getOutputStream();
 			outputStream.write(fileBuf,0, writeLen);
 			outputStream.flush();
-
-			System.out.println("FileServer: Completed request for " + req.getFileName());
 
 		} catch (IOException | ClassNotFoundException e) {
 			e.printStackTrace();
@@ -111,7 +104,6 @@ public class FileServer extends Thread {
 				if (reqStream != null) reqStream.close();
 				if (fileStream != null) fileStream.close();
 				soc.close();
-				System.out.println("FileServer: Connection closed");
 			} catch (IOException e) {
 				System.out.println("FileServer: Unable to close connection.");
 			}

@@ -23,6 +23,7 @@ import messages.ReduceDone;
 import messages.StopCommand;
 import messages.StopDone;
 import sort.Sort;
+import fileIO.FileServer;
 import fileIO.Partition;
 
 public class Master {
@@ -63,6 +64,10 @@ public class Master {
 		sortDone = new ArrayList<Integer>();
 		reduceDone = new ArrayList<Integer>();
 		writtenToFile = new ArrayList<Integer>();
+		
+		//start file server
+		FileServer fileServer = new FileServer("/tmp");
+		fileServer.start();
 
 		//constantly accept commands from the command line
 		final Scanner scanner = new Scanner(System.in);
@@ -100,8 +105,15 @@ public class Master {
 										@Override
 										public void run() {
 											System.out.println("Process "+threadPid+": Starting MapReduce with input file "+configLoader.getInputFile().getPath());
-											startMapReduce(threadPid, configLoader);
-											System.out.println("Process "+threadPid+": MapReduce complete! Results written to "+configLoader.getNumReducers()+" numbered files starting at "+configLoader.getOutputFile().getPath()+"_0");
+											boolean done = startMapReduce(threadPid, configLoader);
+											if(done){
+												String[] brokenPath = configLoader.getOutputFile().getPath().split("\\.");
+												String tempPath = brokenPath[0]+"_0"+"."+brokenPath[1];
+												System.out.println("Process "+threadPid+": MapReduce complete! Results written to "+configLoader.getNumReducers()+" numbered files starting at "+tempPath);
+											}
+											else{
+												System.out.println("Process "+threadPid+"Error: MapReduce failed.");
+											}
 										}
 									});
 									startThread.start();
@@ -167,6 +179,9 @@ public class Master {
 		try {
 			//disperse partitions to participants
 			int j = 0;
+			if(connections.size() == 0){
+				System.out.println("NO CONNECTIONS");
+			}
 			for(Partition<String> part : input){
 				List<Partition<String>> parts;
 				if(partsByIdx.containsKey(j%(connections.size()))){
@@ -267,7 +282,13 @@ public class Master {
 	public static boolean coordinateReduce(final int pid, SortedMap<String, List<Partition<MRKeyVal>>> sortedParts, List<Connection> connections, final ConfigLoader configLoader){
 		boolean success = true;
 		try {
+			System.out.println("config num reducers: "+configLoader.getNumReducers());
+			System.out.println("num connections: "+connections.size());
 			int numReducers = Math.min(configLoader.getNumReducers(), connections.size());
+			if(numReducers == 0){
+				System.out.println("Process "+pid+" Error: No reducers.");
+				return false;
+			}
 			final Map<Connection, Thread> threadsByConn = new HashMap<Connection, Thread>();
 			final Map<Connection, Integer> connIdx = new HashMap<Connection, Integer>();
 			final Map<Integer, SortedMap<String,List<Partition<MRKeyVal>>>> partsByIdx = new HashMap<Integer, SortedMap<String,List<Partition<MRKeyVal>>>>();
@@ -321,10 +342,14 @@ public class Master {
 									if(Thread.interrupted()){
 										return;
 									}
-									Partition.partitionsToFile(reduced, configLoader.getOutputFile().getPath()+"_"+tempJ, DEFAULT_OUTPUT_DELIM);
+									String[] brokenPath = configLoader.getOutputFile().getPath().split("\\.");
+									String tempPath = brokenPath[0]+"_"+tempJ+"."+brokenPath[1];
+									Partition.partitionsToFile(reduced, tempPath, DEFAULT_OUTPUT_DELIM);
 								}
 							} catch (Exception e) {
 								//Reducer failed somewhere, remove connection from list, store failed partitions
+								System.out.println("RANDOM REDUCE EXCEPTION");
+								e.printStackTrace();
 								toRemove.add(connection);
 								failedParts.putAll(parts);
 							}
@@ -345,6 +370,7 @@ public class Master {
 
 					//if thread is still alive after timeout period, interrupt thread and add partitions to retries
 					if(thread.isAlive()){
+						System.out.println("REDUCE TIMEOUT");
 						thread.interrupt();
 						toRemove.add(conn);
 						SortedMap<String,List<Partition<MRKeyVal>>> parts = partsByIdx.get(m);
@@ -395,6 +421,7 @@ public class Master {
 				}
 			}
 			connections = conns;
+			System.out.println("num connections = "+connections.size());
 		}
 		else{
 			System.out.println("remove bad connections, currently "+connections.size());
@@ -408,7 +435,7 @@ public class Master {
 		return connections;
 	}
 
-	public static void startMapReduce(int pid, ConfigLoader configLoader){
+	public static boolean startMapReduce(int pid, ConfigLoader configLoader){
 		try {
 			participants = configLoader.getParticipants();
 			//connect to participants
@@ -416,7 +443,7 @@ public class Master {
 			List<Connection> connections = connectToParticipants();
 			if(connections.size() == 0){
 				System.out.println("No participants are connected.");
-				return;
+				return false;
 			}
 			connectionsByPid.put(pid, connections);
 
@@ -426,10 +453,11 @@ public class Master {
 			//map
 			System.out.println("mapping");
 			List<Partition<String>> input = Partition.fileToPartitions(configLoader.getInputFile().getPath(), configLoader.getPartitionSize());
+			System.out.println("sending map "+connections.size()+" connections");
 			List<Partition<MRKeyVal>> mappedParts = coordinateMap(pid, connections, input);
 			if(mappedParts.equals(null)){
 				System.out.println("Process "+pid+" Error: Map process failed, aborting...");
-				return;
+				return false;
 			}
 			mapDone.add(pid);
 			connectionsByPid.remove(pid);
@@ -444,7 +472,7 @@ public class Master {
 			connections = connectToParticipants();
 			if(connections.size() == 0){
 				System.out.println("No participants are connected.");
-				return;
+				return false;
 			}
 			connectionsByPid.put(pid, connections);
 			numPartsByPid.put(pid, connections.size());
@@ -459,13 +487,15 @@ public class Master {
 			}
 			else{
 				System.out.println("Process "+pid+" Error: the reduce process failed to successfully reduce and write to the output files.");
-				return;
+				return false;
 			}
+			return true;
 
 		} catch (Exception e) {
 			//All expected possible issues are handled above, this is a catch-all for any unexpected issues;
 			//it just prints out the stack trace so you can debug because this would only be an odd issue
 			e.printStackTrace();
+			return false;
 		}
 
 	}
