@@ -493,10 +493,11 @@ public class Master {
 				System.out.println("Process "+pid+" Error: the reduce process failed to successfully reduce and write to the output files.");
 				return false;
 			}
-			return true;
 
             // Clean-up input partitions
             Partition.deleteAll(input);
+
+			return true;
 
 		} catch (Exception e) {
 			//All expected possible issues are handled above, this is a catch-all for any unexpected issues;
