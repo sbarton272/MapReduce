@@ -28,7 +28,7 @@ public class testRemoteFile {
 		newF.deleteOnExit();
 
 		// Test with random file
-		RemoteFile file = new RemoteFile("tmp/testRemote.txt", "localhost", (int)new File("resources/testRemote.txt").length());
+		RemoteFile file = new RemoteFile("resources/testRemote.txt", "localhost", (int)new File("resources/testRemote.txt").length());
 		file.load();
 		file.getFile().deleteOnExit();
 		System.out.println(file.getFile().exists());
