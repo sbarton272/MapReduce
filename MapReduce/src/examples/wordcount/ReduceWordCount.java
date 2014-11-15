@@ -3,9 +3,9 @@ package examples.wordcount;
 import java.util.List;
 
 import mapreduce.MRKeyVal;
-import mapreduce.Reduce;
+import mapreduce.ReduceFn;
 
-public class ReduceWordCount implements Reduce {
+public class ReduceWordCount implements ReduceFn {
 
 	private static final long serialVersionUID = -9134448523192868244L;
 

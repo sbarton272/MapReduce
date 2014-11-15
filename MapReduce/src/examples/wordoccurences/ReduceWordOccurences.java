@@ -1,11 +1,11 @@
-package examples.wordoccurances;
+package examples.wordoccurences;
 
 import java.util.List;
 
 import mapreduce.MRKeyVal;
-import mapreduce.Reduce;
+import mapreduce.ReduceFn;
 
-public class ReduceWordOccurances implements Reduce {
+public class ReduceWordOccurences implements ReduceFn {
 
 	private static final long serialVersionUID = 7097739604546254388L;
 

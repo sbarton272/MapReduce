@@ -2,7 +2,7 @@ package mapreduce;
 
 import java.io.Serializable;
 
-public interface Map extends Serializable {
+public interface MapFn extends Serializable {
 
 	/**
 	 * 

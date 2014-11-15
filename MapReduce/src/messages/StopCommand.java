@@ -1,12 +1,9 @@
 package messages;
 
-import java.util.List;
-
-import mapreduce.MRKeyVal;
-import fileIO.Partition;
 
 public class StopCommand extends Command{
-	
+	private static final long serialVersionUID = 23758868078862039L;
+
 	public StopCommand(int id){
 		super(null, id, "stop", null);
 	}

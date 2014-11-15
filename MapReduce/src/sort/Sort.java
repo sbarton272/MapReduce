@@ -1,25 +1,26 @@
-package mergesort;
+package sort;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 import mapreduce.MRKeyVal;
+import fileIO.KeyPartitionWriter;
 import fileIO.Partition;
-import fileIO.PartitionWriter;
 
 /**
  * Take in partitions and return new sorted partitions. Note that this removes the old partitions.
  * 
  * TODO Test this thoroughly
  */
-public class MergeSort {
+public class Sort {
 
-	public static List<Partition<MRKeyVal>> sort(List<Partition<MRKeyVal>> unsortedPartitions) {
+	public static SortedMap<String, List<Partition<MRKeyVal>>> sort(List<Partition<MRKeyVal>> unsortedPartitions, int partitionSize) {
 
 		// Sort individual partitions
-		// TODO can have mappers complete this step
 		List<Partition<MRKeyVal>> newPartitions = new ArrayList<Partition<MRKeyVal>>();
 		for (Partition<MRKeyVal> partition : unsortedPartitions) {
 
@@ -30,7 +31,7 @@ public class MergeSort {
 		}
 
 		// Merge partitions into new partitions
-		List<Partition<MRKeyVal>> sortedPartitions = mergePartitions(newPartitions, newPartitions.get(0).getMaxSize());
+		SortedMap<String,List<Partition<MRKeyVal>>> sortedPartitions = mergePartitions(newPartitions, partitionSize);
 
 		// Remove all old individually sorted partitions
 		for (Partition<MRKeyVal> partition : newPartitions) {
@@ -59,7 +60,10 @@ public class MergeSort {
 			e.printStackTrace();
 		}
 
-		Collections.sort(values); // TODO ordering?
+		// Sort values
+		Collections.sort(values);
+
+		// Store to new partition
 		Partition<MRKeyVal> result = null;
 		try {
 			result = Partition.newFromKVList(values, partition.getMaxSize());
@@ -70,24 +74,22 @@ public class MergeSort {
 	}
 
 	/**
-	 * Merge all partitions together at once
-	 * Merge into a new partition until full and then create the next partition
+	 * Merge all partitions together at once. Stores entries by key in a map.
+	 * The values of the map are lists of same-key partitions.
 	 */
-	private static List<Partition<MRKeyVal>> mergePartitions(List<Partition<MRKeyVal>> partitions, int newPartitionSize) {
+	private static SortedMap<String,List<Partition<MRKeyVal>>> mergePartitions(List<Partition<MRKeyVal>> partitions, int newPartitionSize) {
 
-		List<Partition<MRKeyVal>> sortedPartitions = new ArrayList<Partition<MRKeyVal>>();
+		SortedMap<String, List<Partition<MRKeyVal>>> sortedPartitions = new TreeMap<String,List<Partition<MRKeyVal>>>();
 		try {
 
 			// Continue merging until all partitions are merged
 			MRKeyVal[] firstElems = populateFirstElems(partitions);
 
-			// Make new partitions the optimal size so know how much to fill each
-			PartitionWriter<MRKeyVal> partitionWriter = new PartitionWriter<MRKeyVal>(newPartitionSize);
-
-			// Open partition writer, this will write partitions until full and then fill a new one
-			partitionWriter.open();
+			// Make new partitions the specified size by key
+			KeyPartitionWriter partitionWriter = new KeyPartitionWriter(newPartitionSize);
 
 			// Iterate through all partitions and fill new partitions until all old partitions are empty
+			// Also switch partitions when a new key appears
 			int minIndex;
 			while(true) {
 				// Get max of first elements
@@ -99,14 +101,13 @@ public class MergeSort {
 				}
 
 				// Retrieved max elem from partition
-				// Write value to partition
 				partitionWriter.write(firstElems[minIndex]);
 
 				// Update the firstElems list
 				firstElems[minIndex] = partitions.get(minIndex).read();
 			}
 
-			// Finally close last partition and get all created partitions
+			// Finally close partition writer and get all created partitions
 			sortedPartitions = partitionWriter.close();
 
 			// Close old partitions because done reading

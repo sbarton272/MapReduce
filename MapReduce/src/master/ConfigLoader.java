@@ -5,14 +5,12 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import mapreduce.Map;
-import mapreduce.Reduce;
+import mapreduce.MapFn;
+import mapreduce.ReduceFn;
 
 public class ConfigLoader {
 
@@ -24,6 +22,7 @@ public class ConfigLoader {
 	private final String STR_MAP_TIMEOUT_SEC = "MAP_TIMEOUT_SEC";
 	private final String STR_REDUCE_FN = "REDUCE_FN";
 	private final String STR_REDUCE_TIMEOUT_SEC = "REDUCE_TIMEOUT_SEC";
+	private final String STR_NUM_REDUCERS = "NUM_REDUCERS";
 	private final String STR_PARITION_SIZE = "PARITION_SIZE";
 	private final String STR_MASTER = "MASTER";
 	private final String STR_PARTICIPANT = "PARTICIPANT";
@@ -34,10 +33,11 @@ public class ConfigLoader {
 	private String jobname = "";
 	private File inputFile = null;
 	private File outputFile = null;
-	private Map mapFn = null;
+	private MapFn mapFn = null;
 	private int mapTimeoutSec = 10;
-	private Reduce reduceFn = null;
+	private ReduceFn reduceFn = null;
 	private int reduceTimeoutSec = 10;
+	private int numReducers = 1;
 	private int partitionSize = 64;
 	private String masterHostName = "localhost";
 	private int masterPort = 9042;
@@ -79,9 +79,8 @@ public class ConfigLoader {
 			outputFile = new File(val);
 			break;
 		case STR_MAP_FN:
-			// TODO just parse strings, move jar loader to remote jar file type (master does not need these objects)
 			try {
-				mapFn = (Map) loadJar(val);
+				mapFn = (MapFn) loadClass(val);
 			} catch (Exception e) {
 				e.printStackTrace();
 				System.out.println("Loading config: unable to load " + val);
@@ -92,7 +91,7 @@ public class ConfigLoader {
 			break;
 		case STR_REDUCE_FN:
 			try {
-				reduceFn = (Reduce) loadJar(val);
+				reduceFn = (ReduceFn) loadClass(val);
 			} catch (Exception e) {
 				e.printStackTrace();
 				System.out.println("Loading config: unable to load " + val);
@@ -100,6 +99,9 @@ public class ConfigLoader {
 			break;
 		case STR_REDUCE_TIMEOUT_SEC:
 			reduceTimeoutSec = Integer.parseInt(val);
+			break;
+		case STR_NUM_REDUCERS:
+			numReducers = Integer.parseInt(val);
 			break;
 		case STR_PARITION_SIZE:
 			partitionSize = Integer.parseInt(val);
@@ -133,36 +135,10 @@ public class ConfigLoader {
 		return split;
 	}
 
-	private Object loadJar(String val) throws Exception {
-		// Used http://cvamshi.wordpress.com/2011/01/12/loading-jars-and-java-classes-dynamically/ to learn about how to do this
-
-		String[] split = val.split(STR_DELIM);
-		if (split.length != 2) {
-			System.out.println("Loading jar: unable to parse jar class and location");
-			return null;
-		}
-
-		// Extract results
-		File jar = new File(split[0]);
-		String classStr = split[1];
-
-		// Check that jar exists
-		if (!jar.exists()) {
-			System.out.println("Loading jar: unable to find jar");
-			return null;
-		}
-
-		System.out.println("Loading jar " + jar.getAbsolutePath());
-
-		ClassLoader loader = URLClassLoader.newInstance(
-				new URL[] { jar.toURI().toURL() },
-				getClass().getClassLoader()
-				);
-		Class<?> clazz = Class.forName(classStr, true, loader);
-		Constructor<?> ctor = clazz.getConstructor();
-		Object o = ctor.newInstance();
-
-		return o;
+	private Object loadClass(String val) throws Exception {
+		Class<?> c = Class.forName(val);
+		Constructor<?> ctor = c.getConstructor();
+		return ctor.newInstance();
 	}
 
 	//------------------------------------
@@ -187,7 +163,7 @@ public class ConfigLoader {
 		return outputFile;
 	}
 
-	public Map getMapFn() {
+	public MapFn getMapFn() {
 		return mapFn;
 	}
 
@@ -195,12 +171,16 @@ public class ConfigLoader {
 		return mapTimeoutSec;
 	}
 
-	public Reduce getReduceFn() {
+	public ReduceFn getReduceFn() {
 		return reduceFn;
 	}
 
 	public int getReduceTimeoutSec() {
 		return reduceTimeoutSec;
+	}
+
+	public int getNumReducers() {
+		return numReducers;
 	}
 
 	public int getPartitionSize() {

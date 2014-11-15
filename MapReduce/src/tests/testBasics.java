@@ -2,14 +2,17 @@ package tests;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.SortedMap;
 
 import mapreduce.MRKeyVal;
-import mapreduce.Map;
+import mapreduce.MapFn;
 import mapreduce.Mapper;
-import mapreduce.Reduce;
+import mapreduce.ReduceFn;
 import mapreduce.Reducer;
-import mergesort.MergeSort;
+import sort.Sort;
 import fileIO.Partition;
 
 public class testBasics {
@@ -55,22 +58,31 @@ public class testBasics {
 		l2.addAll(l);
 		l2.add(new MRKeyVal("g",2));
 		try {
-			Partition<MRKeyVal> p2 = Partition.newFromKVList(l, 5);
-			Partition<MRKeyVal> p3 = Partition.newFromKVList(l2, 5);
+			Partition<MRKeyVal> p2 = Partition.newFromKVList(l, partitionSize);
+			Partition<MRKeyVal> p3 = Partition.newFromKVList(l2, partitionSize);
 			List<Partition<MRKeyVal>> partitions = new ArrayList<Partition<MRKeyVal>>();
 			partitions.add(p2);
 			partitions.add(p3);
 
-			List<Partition<MRKeyVal>> sorted = MergeSort.sort(partitions);
+			Map<String, List<Partition<MRKeyVal>>> sorted = Sort.sort(partitions, partitionSize);
 
 			// Print results
-			Partition<MRKeyVal> p4 = sorted.get(0);
+			Partition<MRKeyVal> p4 = sorted.get("a").get(0);
 			System.out.println(p4.readAllContents());
 			p4.delete();
 
-			Partition<MRKeyVal> p5 = sorted.get(1);
+			Partition<MRKeyVal> p5 = sorted.get("c").get(0);
 			System.out.println(p5.readAllContents());
 			p5.delete();
+
+			Partition<MRKeyVal> p6 = sorted.get("g").get(0);
+			System.out.println(p6.readAllContents());
+			p6.delete();
+
+			Partition<MRKeyVal> p7 = sorted.get("z").get(0);
+			System.out.println(p7.readAllContents());
+			p7.delete();
+
 		} catch (IOException e) {
 			System.out.println("Ooops");
 			e.printStackTrace();
@@ -91,8 +103,9 @@ public class testBasics {
 			printAllPartitions(mapped);
 
 			// Test sort
-			List<Partition<MRKeyVal>> sorted = MergeSort.sort(mapped);
-			printAllPartitions(sorted);
+			SortedMap<String,List<Partition<MRKeyVal>>> sorted = Sort.sort(mapped, partitionSize);
+			List<Partition<MRKeyVal>> sortedList = flatten(sorted.values());
+			printAllPartitions(sortedList);
 
 			// Test reduce
 			Reducer reducer = new Reducer(new ReduceWordCount());
@@ -125,6 +138,15 @@ public class testBasics {
 
 	}
 
+	private static List<Partition<MRKeyVal>> flatten(
+			Collection<List<Partition<MRKeyVal>>> values) {
+		List<Partition<MRKeyVal>> lst = new ArrayList<Partition<MRKeyVal>>();
+		for(List<Partition<MRKeyVal>> l : values) {
+			lst.addAll(l);
+		}
+		return lst;
+	}
+
 	private static void printAllPartitions(List<Partition<MRKeyVal>> partitions) throws IOException {
 		for(Partition<MRKeyVal> p : partitions) {
 			System.out.print(p.readAllContents());
@@ -133,7 +155,7 @@ public class testBasics {
 	}
 }
 
-class MapLowerCase implements Map {
+class MapLowerCase implements MapFn {
 
 	private static final long serialVersionUID = 3901767586735410035L;
 
@@ -144,7 +166,7 @@ class MapLowerCase implements Map {
 
 }
 
-class ReduceWordCount implements Reduce {
+class ReduceWordCount implements ReduceFn {
 
 	private static final long serialVersionUID = -377503573774051833L;
 

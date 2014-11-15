@@ -48,8 +48,6 @@ public class Partition<T> extends RemoteFile {
 		this.maxSize = maxSize;
 		this.filePath =  this.file.getPath();
 
-		System.out.println("Created partition: " + filePath);
-
 		// Make tmp directory if not present
 		File tmpDir = new File(TMP_DIR);
 		tmpDir.mkdir();
@@ -79,6 +77,11 @@ public class Partition<T> extends RemoteFile {
 
 	public void closeWrite() throws IOException {
 
+		// Do nothing if file empty
+		if (contents.size() <= 0) {
+			return;
+		}
+
 		// Open file to write
 		ObjectOutputStream outStream = new ObjectOutputStream(
 				new FileOutputStream(filePath));
@@ -94,7 +97,7 @@ public class Partition<T> extends RemoteFile {
 		if (len > Integer.MAX_VALUE) {
 			throw(new IOException("File too large to be remote"));
 		}
-		setFileByteSize((int) len);
+		this.setFileByteSize((int)len);
 
 	}
 
@@ -213,6 +216,11 @@ public class Partition<T> extends RemoteFile {
 		return filePath;
 	}
 
+	@Override
+	public String toString() {
+		return filePath;
+	}
+
 	//------------------------------------------
 
 	public static Partition<MRKeyVal> newFromKVList(List<MRKeyVal> values, int maxSize) throws IOException {
@@ -235,14 +243,12 @@ public class Partition<T> extends RemoteFile {
 	 * @throws IOException
 	 */
 	public static List<Partition<String>> fileToPartitions(String filepath, int partitionSize) throws IOException {
-		// TODO remove from partition
 
 		// Open file
 		BufferedReader reader = new BufferedReader(new FileReader(filepath));
 
 		// Partition writer to create partitions
 		PartitionWriter<String> partitionWriter = new PartitionWriter<String>(partitionSize);
-		partitionWriter.open();
 
 		// Iterate through input file
 		String line = reader.readLine();
@@ -273,6 +279,20 @@ public class Partition<T> extends RemoteFile {
 			}
 		}
 		writer.close();
+	}
+
+	//----------------------------------------------------------
+
+	public static <T> void deleteAll(List<Partition<T>> partitions) {
+		for (Partition<T> p : partitions) {
+			p.delete();
+		}
+	}
+
+	public static <T> void loadAll(List<Partition<T>> partitions) throws IOException {
+		for (Partition<T> p : partitions) {
+			p.load();
+		}
 	}
 
 }

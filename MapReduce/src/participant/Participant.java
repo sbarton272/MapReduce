@@ -8,6 +8,7 @@ import java.net.Socket;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedMap;
 import fileIO.Partition;
 import mapreduce.MRKeyVal;
 import mapreduce.Mapper;
@@ -16,11 +17,11 @@ import messages.Command;
 import messages.MapAcknowledge;
 import messages.MapDone;
 import messages.ReduceAcknowledge;
+import messages.ReduceCommand;
 import messages.ReduceDone;
 import messages.StopDone;
 
 public class Participant {
-	//TODO handle exceptions better!
 	private static Map<Integer, Thread> mapThreadsByPid;
 	private static Map<Integer, Thread> reduceThreadsByPid;
 
@@ -31,10 +32,12 @@ public class Participant {
 			
 			final ServerSocket masterSocket = new ServerSocket(5050);
 			final Socket connection = masterSocket.accept();
+			System.out.println("accepted master");
 			final ObjectOutputStream out = new ObjectOutputStream(connection.getOutputStream());
 			ObjectInputStream in = new ObjectInputStream(connection.getInputStream());
 			while(true){
 				final Command command = (Command) in.readObject();
+				System.out.println("got command: "+command.getType());
 				if(command.getType().equals("map")){
 					Thread mapThread = new Thread(new Runnable(){
 						public void run(){
@@ -47,14 +50,22 @@ public class Participant {
 								if(Thread.interrupted()){
 									return;
 								}
-								List<Partition<MRKeyVal>> mappedParts = runMap(command.getStringPartitions(), command.getMapper());
-								if(Thread.interrupted()){
-									return;
+								ResultPair mapPair = runMap(command.getStringPartitions(), command.getMapper());
+								if (mapPair.succeeded()){
+									List<Partition<MRKeyVal>> mappedParts = mapPair.getPartitions();
+									if(Thread.interrupted()){
+										return;
+									}
+									MapDone mapDone = new MapDone(true, mappedParts, command.getPid());
+									out.writeObject(mapDone);
 								}
-								MapDone mapDone = new MapDone(true, mappedParts, command.getPid());
-								out.writeObject(mapDone);
+								else{
+									MapDone mapDone = new MapDone(false, null, command.getPid());
+									out.writeObject(mapDone);
+								}
 							} catch (IOException e) {
-								e.printStackTrace();
+								//Cannot successfully write objects to master, exit this thread
+								return;
 							}
 						}
 					});
@@ -62,10 +73,11 @@ public class Participant {
 					mapThread.start();
 				}
 				else if(command.getType().equals("reduce")){
+					final ReduceCommand redCom = (ReduceCommand) command;
 					Thread reduceThread = new Thread(new Runnable(){
 						public void run(){
 							try {
-								ReduceAcknowledge reduceAck = new ReduceAcknowledge(command.getKeyValPartitions(), command.getPid());
+								ReduceAcknowledge reduceAck = new ReduceAcknowledge(redCom.getReduceParts(), redCom.getPid());
 								if(Thread.interrupted()){
 									return;
 								}
@@ -73,14 +85,22 @@ public class Participant {
 								if(Thread.interrupted()){
 									return;
 								}
-								List<Partition<MRKeyVal>> reducedParts = runReduce(command.getKeyValPartitions(), command.getReducer());
-								if(Thread.interrupted()){
-									return;
+								ResultPair reducePair = runReduce(redCom.getReduceParts(), redCom.getReducer());
+								if(reducePair.succeeded()){
+									List<Partition<MRKeyVal>> reducedParts = reducePair.getPartitions();
+									if(Thread.interrupted()){
+										return;
+									}
+									ReduceDone reduceDone = new ReduceDone(true, reducedParts, redCom.getPid());
+									out.writeObject(reduceDone);
 								}
-								ReduceDone reduceDone = new ReduceDone(true, reducedParts, command.getPid());
-								out.writeObject(reduceDone);
+								else{
+									ReduceDone reduceDone = new ReduceDone(false, null, redCom.getPid());
+									out.writeObject(reduceDone);
+								}
 							} catch (IOException e) {
-								e.printStackTrace();
+								//Cannot successfully write objects to master, exit this thread
+								return;
 							}
 						}
 					});
@@ -96,7 +116,8 @@ public class Participant {
 							try {
 								out.writeObject(stopDone);
 							} catch (IOException e) {
-								e.printStackTrace();
+								//Cannot successfully write objects to master, exit this thread
+								return;
 							}
 						}
 					});
@@ -104,18 +125,23 @@ public class Participant {
 				}
 			}
 		} catch(IOException e){
-			System.out.println("cannot establish socket");
+			System.out.println("Participant cannot establish socket");
+			e.printStackTrace();
+			//Stop participant code; this is a fatal issue
+			return;
 		} catch (ClassNotFoundException e) {
-			System.out.println("cannot identify message class");
+			System.out.println("Participant cannot identify message class");
+			//Stop participant code; this is a fatal issue
+			return;
 		}
 	}
 	
-	public static List<Partition<MRKeyVal>> runMap(List<Partition<String>> partitions, Mapper mapper){
+	public static ResultPair runMap(List<Partition<String>> partitions, Mapper mapper){
 		try {
-			return mapper.map(partitions, partitions.get(0).getMaxSize());
+			return new ResultPair(mapper.map(partitions, partitions.get(0).getMaxSize()),true);
 		} catch (IOException e) {
-			e.printStackTrace();
-			return null;
+			//Map failed, return appropriate values
+			return new ResultPair(null, false);
 		}
 	}
 	
@@ -132,12 +158,13 @@ public class Participant {
 		}
 	}
 	
-	public static List<Partition<MRKeyVal>> runReduce(List<Partition<MRKeyVal>> partitions, Reducer reducer){
+	public static ResultPair runReduce(SortedMap<String,List<Partition<MRKeyVal>>> partitions, Reducer reducer){
 		try {
-			return reducer.reduce(partitions, partitions.get(0).getMaxSize());
+			String tempKey = (String) partitions.keySet().toArray()[0];
+			return new ResultPair(reducer.reduce(partitions, partitions.get(tempKey).get(0).getMaxSize()),true);
 		} catch (IOException e) {
-			e.printStackTrace();
-			return null;
+			//Reduce failed, return appropriate values
+			return new ResultPair(null, false);
 		}
 	}
 	

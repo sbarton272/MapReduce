@@ -1,14 +1,22 @@
 package messages;
 import java.util.List;
+import java.util.SortedMap;
 
 import mapreduce.MRKeyVal;
 import mapreduce.Reducer;
 import fileIO.Partition;
 
 public class ReduceCommand extends Command{
-
-	public ReduceCommand(List<Partition<MRKeyVal>> parts, int id, Reducer reduce){
-		super(id, parts, "reduce", reduce);
+	private static final long serialVersionUID = 2388017349451781083L;
+	SortedMap<String,List<Partition<MRKeyVal>>> partitions;
+	
+	public ReduceCommand(SortedMap<String,List<Partition<MRKeyVal>>> parts, int id, Reducer reduce){
+		super(id, null, "reduce", reduce);
+		partitions = parts;
+	}
+	
+	public SortedMap<String,List<Partition<MRKeyVal>>> getReduceParts(){
+		return partitions;
 	}
 
 }

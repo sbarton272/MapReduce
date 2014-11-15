@@ -1,15 +1,19 @@
 package examples.wordcount;
 
 import mapreduce.MRKeyVal;
-import mapreduce.Map;
+import mapreduce.MapFn;
 
-public class MapWordCount implements Map {
+public class MapWordCount implements MapFn {
 
 	private static final long serialVersionUID = 2301357566813845030L;
 
 	@Override
 	public MRKeyVal map(String input) {
-		return new MRKeyVal(input.toLowerCase(), 1);
+		String word = input.toLowerCase().replaceAll("[^a-z0-9 ]", "");
+		if (word.equals("")) {
+			return null;
+		}
+		return new MRKeyVal(word, 1);
 	}
 
 }
