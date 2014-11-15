@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.SortedMap;
-
+import java.io.Serializable;
 import fileIO.Partition;
 import fileIO.PartitionWriter;
 
@@ -13,7 +13,7 @@ import fileIO.PartitionWriter;
 /**
  * Handles reducing on the participant
  */
-public class Reducer {
+public class Reducer implements Serializable{
 
 	private final ReduceFn reduceFn;
 

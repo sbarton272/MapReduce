@@ -33,10 +33,11 @@ public class Master {
 
 	private static final String DEFAULT_OUTPUT_DELIM = "-";
 
-	private static Map<String, Integer> participants;
+	private static List<ParticipantDetails> participants;
 	private static Map<Integer, Integer> numPartsByPid;
 	private static Map<Integer, Integer> partsDoneByPid;
 	private static Map<Integer, List<Connection>> connectionsByPid;
+	private static List<Connection> connections;
 	private static List<Integer> mapDone;
 	private static List<Integer> sortDone;
 	private static List<Integer> reduceDone;
@@ -52,7 +53,8 @@ public class Master {
 		mapTimeout = 0;
 		reduceTimeout = 0;
 
-		participants = new HashMap<String, Integer>();
+		connections = new ArrayList<Connection>();
+		participants = new ArrayList<ParticipantDetails>();
 		numPartsByPid = new HashMap<Integer, Integer>();
 		partsDoneByPid = new HashMap<Integer, Integer>();
 		connectionsByPid = new HashMap<Integer, List<Connection>>();
@@ -374,31 +376,54 @@ public class Master {
 	}
 
 	public static List<Connection> connectToParticipants(){
-		List<Connection> connections = new ArrayList<Connection>();
-		for(String host : participants.keySet()){
-			Socket connection;
-			try {
-				connection = new Socket(host, participants.get(host));
-				ObjectOutputStream out = new ObjectOutputStream(connection.getOutputStream());
-				ObjectInputStream in = new ObjectInputStream(connection.getInputStream());
-				connections.add(new Connection(connection, in, out));
-			} catch (IOException e) {
-				System.out.println("Master failed to connect to the following participant: "+host);
+		if(connections.isEmpty()){
+			List<Connection> conns = new ArrayList<Connection>();
+			System.out.println("num participants: "+participants.size());
+			for(ParticipantDetails participant : participants){
+				String host = participant.getHostName();
+				int port = participant.getPort();
+				System.out.println("try: "+host);
+				Socket connection;
+				try {
+					connection = new Socket(host, port);
+					ObjectOutputStream out = new ObjectOutputStream(connection.getOutputStream());
+					ObjectInputStream in = new ObjectInputStream(connection.getInputStream());
+					conns.add(new Connection(connection, in, out));
+				} catch (IOException e) {
+					System.out.println("Master failed to connect to the following participant: "+host);
+				}
 			}
+			connections = conns;
+		}
+		else{
+			System.out.println("remove bad connections, currently "+connections.size());
+			for(Connection connection : connections){
+				if(!connection.getSocket().isConnected()){
+					connections.remove(connection);
+				}
+			}
+			System.out.println("num remaining: "+connections.size());
 		}
 		return connections;
 	}
 
 	public static void startMapReduce(int pid, ConfigLoader configLoader){
 		try {
+			participants = configLoader.getParticipants();
 			//connect to participants
+			System.out.println("connecting 1");
 			List<Connection> connections = connectToParticipants();
+			if(connections.size() == 0){
+				System.out.println("No participants are connected.");
+				return;
+			}
 			connectionsByPid.put(pid, connections);
 
 			numPartsByPid.put(pid, connections.size());
 			partsDoneByPid.put(pid, 0);
 
 			//map
+			System.out.println("mapping");
 			List<Partition<String>> input = Partition.fileToPartitions(configLoader.getInputFile().getPath(), configLoader.getPartitionSize());
 			List<Partition<MRKeyVal>> mappedParts = coordinateMap(pid, connections, input);
 			if(mappedParts.equals(null)){
@@ -409,16 +434,23 @@ public class Master {
 			connectionsByPid.remove(pid);
 
 			//sort
+			System.out.println("sorting");
 			SortedMap<String,List<Partition<MRKeyVal>>> sortedParts = Sort.sort(mappedParts, configLoader.getPartitionSize());
 			sortDone.add(pid);
 
 			//reconnect to participants
+			System.out.println("connecting 2");
 			connections = connectToParticipants();
+			if(connections.size() == 0){
+				System.out.println("No participants are connected.");
+				return;
+			}
 			connectionsByPid.put(pid, connections);
 			numPartsByPid.put(pid, connections.size());
 			partsDoneByPid.put(pid, 0);
 
 			//reduce
+			System.out.println("reducing");
 			boolean reduced = coordinateReduce(pid, sortedParts, connections, configLoader);
 			if (reduced){
 				reduceDone.add(pid);

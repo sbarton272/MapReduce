@@ -32,10 +32,12 @@ public class Participant {
 			
 			final ServerSocket masterSocket = new ServerSocket(5050);
 			final Socket connection = masterSocket.accept();
+			System.out.println("accepted master");
 			final ObjectOutputStream out = new ObjectOutputStream(connection.getOutputStream());
 			ObjectInputStream in = new ObjectInputStream(connection.getInputStream());
 			while(true){
 				final Command command = (Command) in.readObject();
+				System.out.println("got command: "+command.getType());
 				if(command.getType().equals("map")){
 					Thread mapThread = new Thread(new Runnable(){
 						public void run(){
@@ -124,6 +126,7 @@ public class Participant {
 			}
 		} catch(IOException e){
 			System.out.println("Participant cannot establish socket");
+			e.printStackTrace();
 			//Stop participant code; this is a fatal issue
 			return;
 		} catch (ClassNotFoundException e) {

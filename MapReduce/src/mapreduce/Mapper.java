@@ -2,14 +2,14 @@ package mapreduce;
 
 import java.io.IOException;
 import java.util.List;
-
+import java.io.Serializable;
 import fileIO.Partition;
 import fileIO.PartitionWriter;
 
 /**
  * Handles mapping on the participant
  */
-public class Mapper {
+public class Mapper implements Serializable{
 
 	private final MapFn mapFn;
 
