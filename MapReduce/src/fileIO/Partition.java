@@ -97,6 +97,7 @@ public class Partition<T> extends RemoteFile {
 		if (len > Integer.MAX_VALUE) {
 			throw(new IOException("File too large to be remote"));
 		}
+		this.setFileByteSize((int)len);
 
 	}
 
