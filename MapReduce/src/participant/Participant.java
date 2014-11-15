@@ -9,7 +9,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
-
+import fileIO.FileServer;
+import fileIO.Partition;
 import mapreduce.MRKeyVal;
 import mapreduce.Mapper;
 import mapreduce.Reducer;
@@ -20,7 +21,6 @@ import messages.ReduceAcknowledge;
 import messages.ReduceCommand;
 import messages.ReduceDone;
 import messages.StopDone;
-import fileIO.Partition;
 
 public class Participant {
 	private static int serverPort = 5050;
@@ -35,6 +35,10 @@ public class Participant {
 		System.out.println("Starting participant on port " + serverPort);
 
 		try{
+			//start file server
+			FileServer fileServer = new FileServer("/tmp");
+			fileServer.start();
+			
 			mapThreadsByPid = new HashMap<Integer, Thread>();
 			reduceThreadsByPid = new HashMap<Integer, Thread>();
 
@@ -56,6 +60,7 @@ public class Participant {
 									return;
 								}
 								out.writeObject(mapAck);
+								System.out.println("sent map ack");
 								if(Thread.interrupted()){
 									return;
 								}
@@ -67,10 +72,12 @@ public class Participant {
 									}
 									MapDone mapDone = new MapDone(true, mappedParts, command.getPid());
 									out.writeObject(mapDone);
+									System.out.println("sent map done");
 								}
 								else{
 									MapDone mapDone = new MapDone(false, null, command.getPid());
 									out.writeObject(mapDone);
+									System.out.println("sent map done bad");
 								}
 							} catch (IOException e) {
 								//Cannot successfully write objects to master, exit this thread
@@ -92,6 +99,7 @@ public class Participant {
 									return;
 								}
 								out.writeObject(reduceAck);
+								System.out.println("sent reduce ack");
 								if(Thread.interrupted()){
 									return;
 								}
@@ -103,10 +111,12 @@ public class Participant {
 									}
 									ReduceDone reduceDone = new ReduceDone(true, reducedParts, redCom.getPid());
 									out.writeObject(reduceDone);
+									System.out.println("sent reduce done");
 								}
 								else{
 									ReduceDone reduceDone = new ReduceDone(false, null, redCom.getPid());
 									out.writeObject(reduceDone);
+									System.out.println("sent reduce done bad");
 								}
 							} catch (IOException e) {
 								//Cannot successfully write objects to master, exit this thread
@@ -149,9 +159,12 @@ public class Participant {
 
 	public static ResultPair runMap(List<Partition<String>> partitions, Mapper mapper){
 		try {
+			System.out.println("mapping");
 			return new ResultPair(mapper.map(partitions, partitions.get(0).getMaxSize()),true);
 		} catch (IOException e) {
 			//Map failed, return appropriate values
+			System.out.println("MAP FAILED");
+			e.printStackTrace();
 			return new ResultPair(null, false);
 		}
 	}
@@ -171,9 +184,11 @@ public class Participant {
 
 	public static ResultPair runReduce(SortedMap<String,List<Partition<MRKeyVal>>> partitions, Reducer reducer){
 		try {
+			System.out.println("reducing...");
 			String tempKey = (String) partitions.keySet().toArray()[0];
 			return new ResultPair(reducer.reduce(partitions, partitions.get(tempKey).get(0).getMaxSize()),true);
 		} catch (IOException e) {
+			System.out.println("REDUCE FAILED");
 			//Reduce failed, return appropriate values
 			return new ResultPair(null, false);
 		}
