@@ -190,7 +190,7 @@ public class Partition<T> extends RemoteFile {
 		try {
 			Files.delete(Paths.get(filePath));
 		} catch (IOException e) {
-			e.printStackTrace();
+			return;
 		}
 	}
 

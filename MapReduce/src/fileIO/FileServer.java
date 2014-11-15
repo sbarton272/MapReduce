@@ -53,7 +53,6 @@ public class FileServer extends Thread {
 
 		} catch (IOException e) {
 			System.out.println("File server ran into trouble");
-			e.printStackTrace();
 
 		} finally {
 			try {

@@ -116,7 +116,7 @@ public class Master {
 												System.out.println("Process "+threadPid+": MapReduce complete! Results written to "+configLoader.getNumReducers()+" numbered files starting at "+tempPath);
 											}
 											else{
-												System.out.println("Process "+threadPid+"Error: MapReduce failed.");
+												System.out.println("Process "+threadPid+" Error: MapReduce failed.");
 											}
 										}
 									});
@@ -125,6 +125,7 @@ public class Master {
 
 								} catch (Exception e) {
 									System.out.println("Invalid configurations cannot run");
+									e.printStackTrace();
 								}
 
 							} else if ((args.length == 2) && args[0].equals("status")){
@@ -185,6 +186,7 @@ public class Master {
 			int j = 0;
 			if(connections.size() == 0){
 				System.out.println("NO CONNECTIONS");
+				return null;
 			}
 			for(Partition<String> part : input){
 				List<Partition<String>> parts;
@@ -215,6 +217,7 @@ public class Master {
 					public void run() {
 						MapCommand mapCom = new MapCommand(parts, pid, mapper);
 						try {
+							System.out.println("mapping in a thread!");
 							connection.getOutputStream().writeObject(mapCom);
 							MapAcknowledge mapAck = (MapAcknowledge)connection.getInputStream().readObject();
 							MapDone mapDone = (MapDone)connection.getInputStream().readObject();
@@ -238,11 +241,14 @@ public class Master {
 				});
 				threadsByConn.put(connection, mapComThread);
 				connIdx.put(connection, i);
+				System.out.println("start map thread "+i+", conn.toString = "+connection.toString());
 				mapComThread.start();
-				i++;
 			}
 
 			for (Connection conn : connections) {
+				if (!threadsByConn.containsKey(conn)){
+					System.out.println("thread for "+conn.toString()+" not stored");
+				}
 				Thread thread = threadsByConn.get(conn);
 				try {
 					thread.join(mapTimeout);
@@ -469,6 +475,10 @@ public class Master {
 			//sort
 			System.out.println("sorting");
 			SortedMap<String,List<Partition<MRKeyVal>>> sortedParts = Sort.sort(mappedParts, configLoader.getPartitionSize());
+			if(sortedParts.equals(null)){
+				System.out.println("Process "+pid+" Error: Sort process failed, possibly due to failed participants while sorting; aborting...");
+				return false;
+			}
 			sortDone.add(pid);
 
 			//reconnect to participants
