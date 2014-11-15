@@ -34,7 +34,7 @@ public class testExamples {
 
 			Partition.deleteAll(reduced);
 
-		} catch (IOException e) {
+		} catch (Exception e) {
 			System.out.println("Unable to load config");
 		}
 
@@ -61,7 +61,7 @@ public class testExamples {
 
 			Partition.deleteAll(reduced);
 
-		} catch (IOException e) {
+		} catch (Exception e) {
 			System.out.println("Unable to load config");
 		}
 
