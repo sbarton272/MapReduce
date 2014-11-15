@@ -29,8 +29,6 @@ public class RemoteFile implements Serializable {
 
 	public void load() throws IOException {
 
-		System.out.println("Sending request for file " + file.getName() + " to " + hostName + ":" + FileServer.PORT);
-
 		// Open socket to host machine
 		Socket soc = new Socket(hostName, FileServer.PORT);
 
@@ -45,8 +43,6 @@ public class RemoteFile implements Serializable {
 
 		// Update host machine to this machine as this partition changes the local copy
 		hostName = InetAddress.getLocalHost().getHostName();
-
-		System.out.println("Loaded remote file " + file.getPath());
 
 		// Close streams and socket
 		fileOutStream.close();
