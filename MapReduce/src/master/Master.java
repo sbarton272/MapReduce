@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.SortedMap;
 import java.util.TreeMap;
+
 import mapreduce.MRKeyVal;
 import mapreduce.Mapper;
 import mapreduce.Reducer;
@@ -66,7 +67,7 @@ public class Master {
 		writtenToFile = new ArrayList<Integer>();
 
 		//start file server
-		FileServer fileServer = new FileServer("/tmp");
+		FileServer fileServer = new FileServer();
 		fileServer.start();
 
 		// Useful startup messages
@@ -79,11 +80,11 @@ public class Master {
 			@Override
 			public void run() {
 				int pid = 1;
-				
+
 				while (true) {
 					System.out.println("Enter a command: ");
 					final String command = scanner.nextLine();
-					
+
 					final int threadPid = pid;
 					pid++;
 

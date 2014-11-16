@@ -37,7 +37,7 @@ public class Participant {
 
 		try{
 			//start file server
-			FileServer fileServer = new FileServer("/tmp");
+			FileServer fileServer = new FileServer();
 			fileServer.start();
 
 			mapThreadsByPid = new HashMap<Integer, Thread>();

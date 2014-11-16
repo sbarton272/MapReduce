@@ -78,9 +78,21 @@ The second interface is \ttt{ReduceFn} which requires a \ttt{reduce(String key, 
 
 \subsection{Running Provided Examples}
 
-To run the provided examples follow the above steps and use the provided config files: \ttt{src/examples/wordcount/wordcount.config} or \ttt{src/examples/wordoccurences/wordoccurences.config}. Make sure to modify the participants and number of participants as necessary.
+To run the provided examples follow the above steps and use the provided config files. Make sure to modify the participants and number of participants as necessary. Take a look at the provided code for examples of how to write the map and reduce functions.
 
-Word counts takes a file of one word per line and returns the sorted words with their counts. Word occurrences looks specifically for the word `macbeth' in the text of the play \textit{Macbeth} and returns a count of the occurrences.
+\subsubsection{Word Count}
+Word counts takes a file of one word per line and returns the sorted words with their counts. 
+
+Using the above steps run with \ttt{src/examples/wordcount/wordcount.config}.
+
+The provided config file takes as input a file with all of the words in \textit{Macbeth} and outputs a word count. The only thing necessary to change in the config file is the participants and number of participants.
+
+\subsubsection{Word Occurrences}
+Word occurrences looks specifically for the word `macbeth' in the text of the play \textit{Macbeth} and returns a count of the occurrences.
+
+Using the above steps run with \ttt{src/examples/wordoccurences/wordoccurences.config}.
+
+The provided config file takes as input a file with all of the text of \textit{Macbeth} and outputs a word count for the word `macbeth'. The only thing necessary to change in the config file is the participants and number of participants.
 
 \subsection{Using Remote Files}
 
@@ -92,6 +104,8 @@ Remote files provide a \ttt{load} method to get the file from the remote machine
 \section{Project Requirements}
 
 \subsection{Requirements Met and Capabilities}
+
+We have met all of the 
 
 TODO UML, FLOW DIAGRAMS
 
