@@ -10,7 +10,7 @@ public abstract class Done extends Message{
 	private final boolean success;
 
 	public Done(boolean done, List<Partition<MRKeyVal>> parts, int id, String t){
-		super(id, parts, t);
+		super(id, parts, 0, t);
 		success = done;
 	}
 

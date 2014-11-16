@@ -13,7 +13,7 @@ public abstract class Acknowledge extends Message{
 	}
 
 	public Acknowledge(int id, List<Partition<MRKeyVal>> parts, String t){
-		super(id, parts, t);
+		super(id, parts, 0, t);
 	}
 
 }

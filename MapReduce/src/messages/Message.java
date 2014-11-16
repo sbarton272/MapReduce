@@ -20,10 +20,11 @@ public abstract class Message implements Serializable {
 		partitionSize = s;
 	}
 
-	public Message(int id, List<Partition<MRKeyVal>> parts, String t){
+	public Message(int id, List<Partition<MRKeyVal>> parts, int s, String t){
 		keyValPartitions = parts;
 		pid = id;
 		type = t;
+		partitionSize = s;
 	}
 
 	public String getType(){
