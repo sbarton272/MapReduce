@@ -149,8 +149,8 @@ public class Participant {
 		} catch(IOException e){
 			System.out.println("Participant cannot establish socket");
 			e.printStackTrace();
-			//Stop participant code; this is a fatal issue
-			return;
+			//Restart participant code; this is a fatal issue
+			main(args);
 		} catch (ClassNotFoundException e) {
 			System.out.println("Participant cannot identify message class");
 			//Stop participant code; this is a fatal issue

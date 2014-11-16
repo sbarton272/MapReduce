@@ -129,7 +129,7 @@ public class Master {
 								}
 
 							} else if ((args.length == 2) && args[0].equals("status")){
-								final int statusPid = Integer.valueOf(args[2]);
+								final int statusPid = Integer.valueOf(args[1]);
 								//if invalid pid, tell user to try again
 								if (statusPid >= threadPid){
 									System.out.println("The PID you entered is invalid. Please try again.");
@@ -223,7 +223,7 @@ public class Master {
 							MapDone mapDone = (MapDone)connection.getInputStream().readObject();
 							if(!mapDone.succeeded()){
 								//Mapper failed: remove connection from list, store failed partitions, do later
-								toRemove.add(connection);
+								//toRemove.add(connection);
 								failedParts.addAll(parts);
 							}
 							else{
@@ -343,7 +343,7 @@ public class Master {
 
 								if(!reduceDone.succeeded()){
 									//Reducer failed: remove connection from list, store failed partitions, do later
-									toRemove.add(connection);
+									//toRemove.add(connection);
 									failedParts.putAll(parts);
 								}
 								else{
