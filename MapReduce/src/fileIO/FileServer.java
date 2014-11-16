@@ -14,7 +14,7 @@ import messages.FileRequest;
 // TODO logger for print statements
 public class FileServer extends Thread {
 
-	public static final int PORT = 5267;
+	public static final int PORT = 5232;
 	public static final String DEFAULT_REMOTE_FILE_DIR = "/tmp";
 	private final String remoteFileDir;
 
