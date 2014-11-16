@@ -1,11 +1,12 @@
 package mapreduce;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.SortedMap;
-import java.io.Serializable;
+
 import fileIO.Partition;
 import fileIO.PartitionWriter;
 
@@ -53,7 +54,9 @@ public class Reducer implements Serializable{
 
 			// Reduce for this key
 			MRKeyVal reduceResult = reduceFn.reduce(partitions.getKey(), commonValues);
-			partitionWriter.write(reduceResult);
+			if (reduceResult != null) {
+				partitionWriter.write(reduceResult);
+			}
 
 		}
 		partitionWriter.close();
