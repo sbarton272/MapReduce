@@ -1,4 +1,5 @@
 package master;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -10,7 +11,6 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.SortedMap;
 import java.util.TreeMap;
-
 import mapreduce.MRKeyVal;
 import mapreduce.Mapper;
 import mapreduce.Reducer;
@@ -78,21 +78,23 @@ public class Master {
 		Thread commandThread = new Thread(new Runnable() {
 			@Override
 			public void run() {
+				int pid = 1;
+				
 				while (true) {
 					System.out.println("Enter a command: ");
 					final String command = scanner.nextLine();
+					
+					final int threadPid = pid;
+					pid++;
 
 					//handle a given command
 					Thread handleThread = new Thread(new Runnable() {
 						@Override
 						public void run() {
 
-							int pid = 1;
-
 							//if it's a start command, start mapreduce
 							String[] args = command.split("\\s+");
 							if ((args.length == 2) && args[0].equals("start")){
-
 
 								try {
 									// Load specified configurations
@@ -102,9 +104,8 @@ public class Master {
 									mapTimeout = configLoader.getMapTimeoutSec()*1000;
 									reduceTimeout = configLoader.getReduceTimeoutSec()*1000;
 
-									System.out.println("The PID for this MapReduce process is: "+pid);
+									System.out.println("The PID for this MapReduce process is: "+threadPid);
 
-									final int threadPid = pid;
 									Thread startThread = new Thread(new Runnable() {
 										@Override
 										public void run() {
@@ -113,7 +114,7 @@ public class Master {
 											if(done){
 												String[] brokenPath = configLoader.getOutputFile().getPath().split("\\.");
 												String tempPath = brokenPath[0]+"_0"+"."+brokenPath[1];
-												System.out.println("Process "+threadPid+": MapReduce complete! Results written to "+configLoader.getNumReducers()+" numbered files starting at "+tempPath);
+												System.out.println("Process "+threadPid+": MapReduce complete! Results written to "+connections.size()+" numbered files starting at "+tempPath);
 											}
 											else{
 												System.out.println("Process "+threadPid+" Error: MapReduce failed.");
@@ -121,7 +122,6 @@ public class Master {
 										}
 									});
 									startThread.start();
-									pid++;
 
 								} catch (Exception e) {
 									System.out.println("Invalid configurations cannot run");
@@ -131,7 +131,7 @@ public class Master {
 							} else if ((args.length == 2) && args[0].equals("status")){
 								final int statusPid = Integer.valueOf(args[2]);
 								//if invalid pid, tell user to try again
-								if (statusPid >= pid){
+								if (statusPid >= threadPid){
 									System.out.println("The PID you entered is invalid. Please try again.");
 								}
 								else{
@@ -147,7 +147,7 @@ public class Master {
 							} else if ((args.length == 2) && args[0].equals("stop")) {
 								final int stopPid = Integer.valueOf(args[1]);
 								//if invalid pid, tell user to try again
-								if (stopPid >= pid){
+								if (stopPid >= threadPid){
 									System.out.println("The PID you entered is invalid. Please try again.");
 								}
 								else{
