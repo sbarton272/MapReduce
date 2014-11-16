@@ -171,6 +171,7 @@ public class Participant {
 	}
 
 	public static void stopMap(int pid){
+		System.out.println("Stopping process "+pid+": map");
 		if(mapThreadsByPid.containsKey(pid)){
 			Thread mapThread = mapThreadsByPid.get(pid);
 			if (mapThread.isAlive()){
@@ -189,12 +190,14 @@ public class Participant {
 			return new ResultPair(reducer.reduce(partitions, partitionSize),true);
 		} catch (IOException e) {
 			System.out.println("REDUCE FAILED");
+			e.printStackTrace();
 			//Reduce failed, return appropriate values
 			return new ResultPair(null, false);
 		}
 	}
 
 	public static void stopReduce(int pid){
+		System.out.println("Stopping process "+pid+": reduce");
 		if(reduceThreadsByPid.containsKey(pid)){
 			Thread reduceThread = reduceThreadsByPid.get(pid);
 			if (reduceThread.isAlive()){

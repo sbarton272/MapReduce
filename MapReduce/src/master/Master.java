@@ -289,7 +289,7 @@ public class Master {
 		return null;
 	}
 
-	public static boolean coordinateReduce(final int pid, SortedMap<String, List<Partition<MRKeyVal>>> sortedParts, List<Connection> connections, final ConfigLoader configLoader){
+	public static boolean coordinateReduce(final int pid, SortedMap<String, List<Partition<MRKeyVal>>> sortedParts, List<Connection> connections, final int partitionSize, final ConfigLoader configLoader){
 		boolean success = true;
 		try {
 			System.out.println("config num reducers: "+configLoader.getNumReducers());
@@ -304,7 +304,41 @@ public class Master {
 			final Map<Integer, SortedMap<String,List<Partition<MRKeyVal>>>> partsByIdx = new HashMap<Integer, SortedMap<String,List<Partition<MRKeyVal>>>>();
 
 			// Iterate through all partitions, distribute to participants as evenly as possible
-			int i = 0;
+			int partsPerReducer;
+			System.out.println("sorted parts size: "+sortedParts.size());
+			System.out.println("numReducers: "+numReducers);
+			if(sortedParts.size() <= numReducers){
+				partsPerReducer = 1;
+			}
+			else if((sortedParts.size()%numReducers) == 0){
+				partsPerReducer = sortedParts.size()/numReducers;
+			}
+			else{
+				partsPerReducer = (sortedParts.size()/numReducers)+1;
+			}
+			System.out.println("partsPerRed: "+partsPerReducer);
+			int counter = 1;
+			int connectionNum = 0;
+			for(String key : sortedParts.keySet()){
+				SortedMap<String,List<Partition<MRKeyVal>>> storedSort;
+				if(partsByIdx.containsKey(connectionNum)){
+					storedSort = partsByIdx.get(connectionNum);
+				}
+				else{
+					storedSort = new TreeMap<String,List<Partition<MRKeyVal>>>();
+				}
+				storedSort.put(key, sortedParts.get(key));
+				partsByIdx.put(connectionNum, storedSort);
+
+				if(counter == partsPerReducer){
+					counter = 1;
+					connectionNum++;
+				}
+				else{
+					counter++;
+				}
+			}
+			/*int i = 0;
 			for(String key : sortedParts.keySet()){
 				SortedMap<String,List<Partition<MRKeyVal>>> storedSort;
 				if(partsByIdx.containsKey(i%numReducers)){
@@ -317,12 +351,13 @@ public class Master {
 				partsByIdx.put(i%numReducers, storedSort);
 
 				i++;
-			}
+			}*/
 
 			//Send participants reduce commands with partitions defined above
 			final SortedMap<String, List<Partition<MRKeyVal>>> failedParts = new TreeMap<String, List<Partition<MRKeyVal>>>();
 			final List<Connection> toRemove = new ArrayList<Connection>();
 			for(int j = 0; j < numReducers; j++){
+				System.out.println("iterating through numReducers");
 				if(!partsByIdx.containsKey(j)){
 					break;
 				}
@@ -334,7 +369,8 @@ public class Master {
 					Thread reduceComThread = new Thread(new Runnable() {
 						@Override
 						public void run() {
-							ReduceCommand reduceCom = new ReduceCommand(parts, pid, reducer);
+							System.out.println("sending reduce command...");
+							ReduceCommand reduceCom = new ReduceCommand(parts, pid, partitionSize, reducer);
 							try {
 								connection.getOutputStream().writeObject(reduceCom);
 
@@ -399,7 +435,7 @@ public class Master {
 					connections.remove(connection);
 				}
 				if(!failedParts.isEmpty()){
-					success = coordinateReduce(pid, failedParts, connections, configLoader);
+					success = coordinateReduce(pid, failedParts, connections, partitionSize, configLoader);
 				}
 			}
 
@@ -494,7 +530,7 @@ public class Master {
 
 			//reduce
 			System.out.println("reducing");
-			boolean reduced = coordinateReduce(pid, sortedParts, connections, configLoader);
+			boolean reduced = coordinateReduce(pid, sortedParts, connections, configLoader.getPartitionSize(), configLoader);
 			if (reduced){
 				reduceDone.add(pid);
 				writtenToFile.add(pid);

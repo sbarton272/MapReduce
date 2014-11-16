@@ -110,7 +110,12 @@ public class Partition<T> extends RemoteFile {
 			contents.add(val);
 			size++;
 		} else {
-			throw(new IOException("Partition not open or full"));
+			if(writeMode){
+				throw(new IOException("Partition full..."));
+			}
+			else{
+				throw(new IOException("Partition not open or full"));
+			}
 		}
 	}
 
