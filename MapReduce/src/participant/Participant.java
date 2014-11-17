@@ -27,13 +27,16 @@ public class Participant {
 	private static int serverPort = 5050;
 	private static Map<Integer, Thread> mapThreadsByPid;
 	private static Map<Integer, Thread> reduceThreadsByPid;
+	private static int numRestarts = 0;
 
 	public static void main(String[] args) {
 		if (args.length == 1) {
 			serverPort = Integer.parseInt(args[0]);
 		}
 
-		System.out.println("Starting participant on port " + serverPort);
+		if(numRestarts == 0){
+			System.out.println("Starting participant on port " + serverPort);
+		}
 
 		try{
 			//start file server
@@ -45,13 +48,13 @@ public class Participant {
 
 			final ServerSocket masterSocket = new ServerSocket(serverPort);
 			final Socket connection = masterSocket.accept();
-			System.out.println("accepted master");
+			System.out.println("Accepted master");
 			final ObjectOutputStream out = new ObjectOutputStream(connection.getOutputStream());
 			ObjectInputStream in = new ObjectInputStream(connection.getInputStream());
 			while(true){
 				final Command command = (Command) in.readObject();
-				System.out.println("got command: "+command.getType());
 				if(command.getType().equals("map")){
+					System.out.println("Process "+command.getPid()+": Received Map Command");
 					Thread mapThread = new Thread(new Runnable(){
 						@Override
 						public void run(){
@@ -61,7 +64,6 @@ public class Participant {
 									return;
 								}
 								out.writeObject(mapAck);
-								System.out.println("sent map ack");
 								if(Thread.interrupted()){
 									return;
 								}
@@ -73,12 +75,12 @@ public class Participant {
 									}
 									MapDone mapDone = new MapDone(true, mappedParts, command.getPid());
 									out.writeObject(mapDone);
-									System.out.println("sent map done");
+									System.out.println("Process "+command.getPid()+": Sent Map Done Message");
 								}
 								else{
 									MapDone mapDone = new MapDone(false, null, command.getPid());
 									out.writeObject(mapDone);
-									System.out.println("sent map done bad");
+									System.out.println("Process "+command.getPid()+": Sent Map Unsuccessful Message");
 								}
 							} catch (IOException e) {
 								//Cannot successfully write objects to master, exit this thread
@@ -91,6 +93,7 @@ public class Participant {
 				}
 				else if(command.getType().equals("reduce")){
 					final ReduceCommand redCom = (ReduceCommand) command;
+					System.out.println("Process "+redCom.getPid()+": Received Reduce Command");
 					Thread reduceThread = new Thread(new Runnable(){
 						@Override
 						public void run(){
@@ -100,7 +103,6 @@ public class Participant {
 									return;
 								}
 								out.writeObject(reduceAck);
-								System.out.println("sent reduce ack");
 								if(Thread.interrupted()){
 									return;
 								}
@@ -112,12 +114,12 @@ public class Participant {
 									}
 									ReduceDone reduceDone = new ReduceDone(true, reducedParts, redCom.getPid());
 									out.writeObject(reduceDone);
-									System.out.println("sent reduce done");
+									System.out.println("Process "+command.getPid()+": Sent Reduce Done Message");
 								}
 								else{
 									ReduceDone reduceDone = new ReduceDone(false, null, redCom.getPid());
 									out.writeObject(reduceDone);
-									System.out.println("sent reduce done bad");
+									System.out.println("Process "+command.getPid()+": Sent Reduce Unsuccessful Message");
 								}
 							} catch (IOException e) {
 								//Cannot successfully write objects to master, exit this thread
@@ -129,6 +131,7 @@ public class Participant {
 					reduceThread.start();
 				}
 				else{
+					System.out.println("Process "+command.getPid()+": Received Stop Command");
 					Thread stopThread = new Thread(new Runnable(){
 						@Override
 						public void run(){
@@ -137,6 +140,7 @@ public class Participant {
 							StopDone stopDone = new StopDone(true, command.getPid());
 							try {
 								out.writeObject(stopDone);
+								System.out.println("Process "+command.getPid()+": Sent Stop Done Message");
 							} catch (IOException e) {
 								//Cannot successfully write objects to master, exit this thread
 								return;
@@ -147,12 +151,11 @@ public class Participant {
 				}
 			}
 		} catch(IOException e){
-			System.out.println("Participant cannot establish socket");
-			e.printStackTrace();
-			//Restart participant code; this is a fatal issue
+			//Restart participant code
+			numRestarts++;
 			main(args);
 		} catch (ClassNotFoundException e) {
-			System.out.println("Participant cannot identify message class");
+			System.out.println("Failure: Participant cannot identify message class, exiting...");
 			//Stop participant code; this is a fatal issue
 			return;
 		}
@@ -160,18 +163,14 @@ public class Participant {
 
 	public static ResultPair runMap(List<Partition<String>> partitions, int partitionSize, Mapper mapper){
 		try {
-			System.out.println("mapping");
 			return new ResultPair(mapper.map(partitions, partitionSize) ,true);
 		} catch (IOException e) {
 			//Map failed, return appropriate values
-			System.out.println("MAP FAILED");
-			e.printStackTrace();
 			return new ResultPair(null, false);
 		}
 	}
 
 	public static void stopMap(int pid){
-		System.out.println("Stopping process "+pid+": map");
 		if(mapThreadsByPid.containsKey(pid)){
 			Thread mapThread = mapThreadsByPid.get(pid);
 			if (mapThread.isAlive()){
@@ -186,18 +185,14 @@ public class Participant {
 
 	public static ResultPair runReduce(SortedMap<String,List<Partition<MRKeyVal>>> partitions, int partitionSize, Reducer reducer){
 		try {
-			System.out.println("reducing...");
 			return new ResultPair(reducer.reduce(partitions, partitionSize),true);
 		} catch (IOException e) {
-			System.out.println("REDUCE FAILED");
-			e.printStackTrace();
 			//Reduce failed, return appropriate values
 			return new ResultPair(null, false);
 		}
 	}
 
 	public static void stopReduce(int pid){
-		System.out.println("Stopping process "+pid+": reduce");
 		if(reduceThreadsByPid.containsKey(pid)){
 			Thread reduceThread = reduceThreadsByPid.get(pid);
 			if (reduceThread.isAlive()){

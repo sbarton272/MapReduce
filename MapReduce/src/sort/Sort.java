@@ -57,7 +57,6 @@ public class Sort {
 			partition.closeRead();
 
 		} catch (IOException e) {
-			e.printStackTrace();
 		}
 
 		// Sort values
@@ -68,7 +67,6 @@ public class Sort {
 		try {
 			result = Partition.newFromKVList(values, partition.getMaxSize());
 		} catch (IOException e) {
-			e.printStackTrace();
 		}
 		return result;
 	}
