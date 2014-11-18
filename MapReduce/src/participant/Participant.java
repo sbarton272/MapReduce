@@ -63,6 +63,7 @@ public class Participant {
 								if(Thread.interrupted()){
 									return;
 								}
+								out.flush();
 								out.writeObject(mapAck);
 								if(Thread.interrupted()){
 									return;
@@ -74,11 +75,13 @@ public class Participant {
 										return;
 									}
 									MapDone mapDone = new MapDone(true, mappedParts, command.getPid());
+									out.flush();
 									out.writeObject(mapDone);
 									System.out.println("Process "+command.getPid()+": Sent Map Done Message");
 								}
 								else{
 									MapDone mapDone = new MapDone(false, null, command.getPid());
+									out.flush();
 									out.writeObject(mapDone);
 									System.out.println("Process "+command.getPid()+": Sent Map Unsuccessful Message");
 								}
@@ -102,6 +105,7 @@ public class Participant {
 								if(Thread.interrupted()){
 									return;
 								}
+								out.flush();
 								out.writeObject(reduceAck);
 								if(Thread.interrupted()){
 									return;
@@ -113,11 +117,13 @@ public class Participant {
 										return;
 									}
 									ReduceDone reduceDone = new ReduceDone(true, reducedParts, redCom.getPid());
+									out.flush();
 									out.writeObject(reduceDone);
 									System.out.println("Process "+command.getPid()+": Sent Reduce Done Message");
 								}
 								else{
 									ReduceDone reduceDone = new ReduceDone(false, null, redCom.getPid());
+									out.flush();
 									out.writeObject(reduceDone);
 									System.out.println("Process "+command.getPid()+": Sent Reduce Unsuccessful Message");
 								}
@@ -139,6 +145,7 @@ public class Participant {
 							stopReduce(command.getPid());
 							StopDone stopDone = new StopDone(true, command.getPid());
 							try {
+								out.flush();
 								out.writeObject(stopDone);
 								System.out.println("Process "+command.getPid()+": Sent Stop Done Message");
 							} catch (IOException e) {
@@ -149,6 +156,7 @@ public class Participant {
 					});
 					stopThread.start();
 				}
+				masterSocket.close();
 			}
 		} catch(IOException e){
 			//Restart participant code
