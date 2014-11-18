@@ -119,7 +119,6 @@ public class ConfigLoader {
 	private String[] splitHostPort(String val) {
 		String[] split = val.split(STR_DELIM);
 		if (split.length != 2) {
-			System.out.println("Loading jar: unable to parse jar class and location");
 			return null;
 		}
 		return split;

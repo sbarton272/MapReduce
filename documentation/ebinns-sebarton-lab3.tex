@@ -105,12 +105,29 @@ Remote files provide a \ttt{load} method to get the file from the remote machine
 
 \subsection{Requirements Met and Capabilities}
 
-We have met all of the 
+We have met all of the requirements stated in the lab handout. Our MapReduce facility successfully completes MapReduce processes by evenly partitioning map work amongst all accessible participants to get , sorting the mapped results (which are in (key, value) format) by key, evenly dividing the sorted map results amongst a specified number of participants for reducing (while maintaining the order determined by the sort function), and then writing each reducer's results to a separate file, with each such file ending in a number which identifies the proper sequence of results. All scheduling, sorting, and writing occurs on whichever server is running the Master code since we are allowed to assume that the Master server does not fail, so this allows us to ensure that the server won't crash while attempting those processes. Meanwhile, the Participant servers constantly accept commands from the Master and keep them ordered by PID in order to cleanly keep track of the different processes and easily stop any processes for a given PID if the user enters a "\verb|stop <pid>|" command.\\
+The user is able to run three commands on the Master server: "\verb|start <config file>|", "\verb|status <pid>|", and "\verb|stop <pid>|." These commands all work properly; "start" starts a MapReduce process with the provided config file for settings (and prints out the PID for that new process), "status" prints out the status of the process corresponding to the given PID, and "stop" cleanly stops the process corresponding to the given PID if possible. The user can also specify all of the major settings (including input file, output file, number of reducers, maximum partition size, every participant's host and port, etc.) for a MapReduce process by putting that information in a config file (matching the format shown in our examples) and entering that config file with the start command. \\
 
-TODO UML, FLOW DIAGRAMS
+UML Diagram of our MapReduce facility: \\
+\includegraphics[scale=.35]{MapReduce_UML.png}
+
+\newpage
+Flow Diagram for user input "\verb|start <config file>|": \\
+\includegraphics[scale=.5]{MapReduce_start.png}
+
+Flow Diagram for user input "\verb|stop <pid>|": \\
+\includegraphics[scale=.7]{MapReduce_stop.png}
 
 \subsection{Requirements Not Met and Limitations}
 
+One fairly important limitation of our MapReduce facility as it currently stands is that due to the way in which we run the FileServer, our facility cannot be run on the same machine more than once at the same time. This does not mean we cannot run multiple MapReduce processes concurrently; within one Master instance (and one Participant instance on corresponding participants), running multiple processes concurrently works great. What we mean by this is that you cannot currently run the Master or Participant code in more than one separate instance on the same server without one of them refusing to connect to the FileServer and causing the Map process on the Participant to fail (since this is the first time in our code that the FileServer is used). For example, if one person logs into \verb|unix2.andrew.cmu.edu| and runs the Master code on it, then logs into \verb|unix6.andrew.cmu.edu| and runs the Participant code on it, then anyone else who simultaneously tries to run our facility on \verb|unix2.andrew.cmu.edu| and/or \verb|unix6.andrew.cmu.edu| will run into FileServer issues.\\
+
+Beyond that, our MapReduce facility essentially functions as it is intended to. All standard processes work as designed. In the event of participant failure or Mapper/Reducer failure, any participants that are not working properly are disconnected and removed from the working list of participants (which defines where map/reduce partitions can be sent) and any failed partitions are retried on functional participants. Furthermore, all other unexpected failures (such as network problems, missing files, etc.) are handled in such a way that the user receives relevant, concise information about the failure and the Master and Participant code continue to run as they should (in other words, errors are handled cleanly and do not accidentally cause the entire Master or Participant code to abort).
+
 \subsection{Improvements}
+
+There is always room for improvement, and our MapReduce facility is no exception. We could potentially improve it by enabling some way for the user to specify what port to use for the FileServer instead of using one preset port (which is causing the issue mentioned in the last section). \\
+
+***TODO: DISCUSS OTHER IMPROVEMENTS, FINISH UML, ADD TO CAPABILITIES, AND REVISE***
 
 \end{document}

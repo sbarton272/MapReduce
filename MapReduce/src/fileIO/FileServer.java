@@ -33,7 +33,7 @@ public class FileServer extends Thread {
 		try {
 			serverSoc = new ServerSocket(PORT);
 
-			System.out.println("File server online");
+			//System.out.println("File server online");
 
 			// Run indefinitely
 			while(true){
@@ -52,7 +52,7 @@ public class FileServer extends Thread {
 			}
 
 		} catch (IOException e) {
-			System.out.println("File server ran into trouble");
+			//System.out.println("File Server Failure: an error occurred in the file server.");
 
 		} finally {
 			try {
@@ -95,7 +95,6 @@ public class FileServer extends Thread {
 			outputStream.flush();
 
 		} catch (IOException | ClassNotFoundException e) {
-			e.printStackTrace();
 		} finally {
 
 			// Close files
@@ -104,7 +103,7 @@ public class FileServer extends Thread {
 				if (fileStream != null) fileStream.close();
 				soc.close();
 			} catch (IOException e) {
-				System.out.println("FileServer: Unable to close connection.");
+				System.out.println("File Server Error: Unable to close connection.");
 			}
 		}
 
