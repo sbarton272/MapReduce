@@ -12,6 +12,8 @@ import java.util.Scanner;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
+import participant.ResultPair;
+
 import mapreduce.MRKeyVal;
 import mapreduce.Mapper;
 import mapreduce.Reducer;
@@ -106,6 +108,7 @@ public class Master {
 									reducer = new Reducer(configLoader.getReduceFn());
 									mapTimeout = configLoader.getMapTimeoutSec()*1000;
 									reduceTimeout = configLoader.getReduceTimeoutSec()*1000;
+									participants = configLoader.getParticipants();
 
 									System.out.println("The PID for this MapReduce process is: "+threadPid);
 
@@ -184,7 +187,8 @@ public class Master {
 			//disperse partitions to participants
 			int j = 0;
 			if(connections.size() == 0){
-				return null;
+				System.out.println("Process "+pid+" Error: No Mappers are connected.");
+				return new ArrayList<Partition<MRKeyVal>>();
 			}
 			for(Partition<String> part : input){
 				List<Partition<String>> parts;
@@ -212,6 +216,7 @@ public class Master {
 					public void run() {
 						MapCommand mapCom = new MapCommand(parts, partitionSize, pid, mapper);
 						try {
+							connection.getOutputStream().flush();
 							connection.getOutputStream().writeObject(mapCom);
 							MapAcknowledge mapAck = (MapAcknowledge)connection.getInputStream().readObject();
 							MapDone mapDone = (MapDone)connection.getInputStream().readObject();
@@ -277,7 +282,7 @@ public class Master {
 			e.printStackTrace();
 		}
 
-		return null;
+		return new ArrayList<Partition<MRKeyVal>>();
 	}
 
 	public static boolean coordinateReduce(final int pid, SortedMap<String, List<Partition<MRKeyVal>>> sortedParts, List<Connection> connections, final int partitionSize, final ConfigLoader configLoader){
@@ -342,6 +347,7 @@ public class Master {
 						public void run() {
 							ReduceCommand reduceCom = new ReduceCommand(parts, pid, partitionSize, reducer);
 							try {
+								connection.getOutputStream().flush();
 								connection.getOutputStream().writeObject(reduceCom);
 
 								ReduceAcknowledge reduceAck = (ReduceAcknowledge)connection.getInputStream().readObject();
@@ -417,7 +423,7 @@ public class Master {
 		return success;
 	}
 
-	public static List<Connection> connectToParticipants(){
+	public static synchronized List<Connection> connectToParticipants(int pid){
 		if(connections.isEmpty()){
 			List<Connection> conns = new ArrayList<Connection>();
 			for(ParticipantDetails participant : participants){
@@ -442,36 +448,51 @@ public class Master {
 				}
 			}
 		}
+		
+		connectionsByPid.put(pid, connections);
+		numPartsByPid.put(pid, connections.size());
+		partsDoneByPid.put(pid, 0);
+		
 		return connections;
+	}
+	
+	public static synchronized ResultPair startMapOrReduce(String type, int pid, List<Connection> connections, List<Partition<String>> stringIn, int partSize, ConfigLoader loader, SortedMap<String,List<Partition<MRKeyVal>>> sortedParts){
+		if(type.equals("map")){
+			return new ResultPair(coordinateMap(pid, connections, stringIn, partSize), true);
+		}
+		else{
+			boolean succeeded = coordinateReduce(pid, sortedParts, connections, partSize, loader);
+			if(succeeded){
+				reduceDone.add(pid);
+				writtenToFile.add(pid);
+			}
+			return new ResultPair(null, succeeded);
+		}
 	}
 
 	public static boolean startMapReduce(int pid, ConfigLoader configLoader){
 		try {
-			participants = configLoader.getParticipants();
 			//connect to participants
 			if(stopByPid.get(pid)){
 				return false;
 			}
-			List<Connection> connections = connectToParticipants();
+			List<Connection> connections = connectToParticipants(pid);
 			if(connections.size() == 0){
 				System.out.println("Process "+pid+" Failed: No participants are connected.");
 				return false;
 			}
-			connectionsByPid.put(pid, connections);
+			//connectionsByPid.put(pid, connections);
 
-			numPartsByPid.put(pid, connections.size());
-			partsDoneByPid.put(pid, 0);
+			//numPartsByPid.put(pid, connections.size());
+			//partsDoneByPid.put(pid, 0);
 
 			//map
 			if(stopByPid.get(pid)){
 				return false;
 			}
 			List<Partition<String>> input = Partition.fileToPartitions(configLoader.getInputFile().getPath(), configLoader.getPartitionSize());
-			List<Partition<MRKeyVal>> mappedParts = coordinateMap(pid, connections, input, configLoader.getPartitionSize());
-			if(mappedParts.equals(null)){
-				System.out.println("Process "+pid+" Failed: Map process failed, not individual participants.");
-				return false;
-			}
+			//List<Partition<MRKeyVal>> mappedParts = coordinateMap(pid, connections, input, configLoader.getPartitionSize());
+			List<Partition<MRKeyVal>> mappedParts = startMapOrReduce("map", pid, connections, input, configLoader.getPartitionSize(), configLoader, null).getPartitions();
 			if(mappedParts.isEmpty()){
 				System.out.println("Process "+pid+" Failed: Map process failed, not individual participants.");
 				return false;
@@ -488,28 +509,31 @@ public class Master {
 				return false;
 			}
 			sortDone.add(pid);
+			
+			Thread.sleep(7000);
 
 			//reconnect to participants
 			if(stopByPid.get(pid)){
 				return false;
 			}
-			connections = connectToParticipants();
+			connections = connectToParticipants(pid);
 			if(connections.size() == 0){
 				System.out.println("Process "+pid+" Failed: No participants are connected.");
 				return false;
 			}
-			connectionsByPid.put(pid, connections);
-			numPartsByPid.put(pid, connections.size());
-			partsDoneByPid.put(pid, 0);
+			//connectionsByPid.put(pid, connections);
+			//numPartsByPid.put(pid, connections.size());
+			//partsDoneByPid.put(pid, 0);
 
 			//reduce
 			if(stopByPid.get(pid)){
 				return false;
 			}
-			boolean reduced = coordinateReduce(pid, sortedParts, connections, configLoader.getPartitionSize(), configLoader);
+			//boolean reduced = coordinateReduce(pid, sortedParts, connections, configLoader.getPartitionSize(), configLoader);
+			boolean reduced = startMapOrReduce("reduce", pid, connections, null, configLoader.getPartitionSize(), configLoader, sortedParts).succeeded();
 			if (reduced){
-				reduceDone.add(pid);
-				writtenToFile.add(pid);
+				//reduceDone.add(pid);
+				//writtenToFile.add(pid);
 			}
 			else{
 				System.out.println("Process "+pid+" Failed: Reduce process failed, not individual participants.");
@@ -550,6 +574,7 @@ public class Master {
 						public void run() {
 							StopCommand stopCom = new StopCommand(pid);
 							try {
+								connection.getOutputStream().flush();
 								connection.getOutputStream().writeObject(stopCom);
 								StopDone done = (StopDone) connection.getInputStream().readObject();
 								if(!done.succeeded()){
