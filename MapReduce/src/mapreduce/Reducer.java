@@ -23,7 +23,6 @@ public class Reducer implements Serializable{
 	}
 
 	public List<Partition<MRKeyVal>> reduce(SortedMap<String,List<Partition<MRKeyVal>>> oldPartitions, int partitionSize) throws IOException {
-		// TODO support n reducers with n output files
 
 		// Start partitionWriter to write reduced values
 		PartitionWriter<MRKeyVal> partitionWriter = new PartitionWriter<MRKeyVal>(partitionSize);
@@ -39,7 +38,7 @@ public class Reducer implements Serializable{
 				// Add all partition values but not keys (and double check for sanity that keys are same)
 				for(MRKeyVal kv : p.readAllContents()) {
 
-					// TODO this is for debugging only
+					// Test invariant
 					if (!kv.getKey().equals(partitions.getKey())) {
 						throw(new IOException("Partitions are not by key"));
 					}

@@ -123,8 +123,6 @@ public class testBasics {
 			e.printStackTrace();
 		}
 
-		// TODO test null values and other edge cases
-
 	}
 
 	private static List<Partition<MRKeyVal>> flatten(
