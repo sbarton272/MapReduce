@@ -14,7 +14,6 @@ import fileIO.Partition;
 /**
  * Take in partitions and return new sorted partitions. Note that this removes the old partitions.
  * 
- * TODO Test this thoroughly
  */
 public class Sort {
 

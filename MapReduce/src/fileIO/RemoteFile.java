@@ -14,8 +14,6 @@ import messages.FileRequest;
 
 public class RemoteFile implements Serializable {
 
-	// TODO just extend File?
-
 	private static final long serialVersionUID = -3103109845670699168L;
 	protected final File file;
 	private int fileByteSize;

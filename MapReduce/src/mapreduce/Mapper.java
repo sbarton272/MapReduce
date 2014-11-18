@@ -1,8 +1,9 @@
 package mapreduce;
 
 import java.io.IOException;
-import java.util.List;
 import java.io.Serializable;
+import java.util.List;
+
 import fileIO.Partition;
 import fileIO.PartitionWriter;
 
@@ -45,8 +46,6 @@ public class Mapper implements Serializable{
 
 		}
 		partitionWriter.close();
-
-		// TODO test everything maps to null
 
 		return partitionWriter.getPartitions();
 	}
