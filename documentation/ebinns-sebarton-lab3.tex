@@ -108,14 +108,27 @@ Remote files provide a \ttt{load} method to get the file from the remote machine
 We have met all of the requirements stated in the lab handout. Our MapReduce facility successfully completes MapReduce processes by evenly partitioning map work amongst all accessible participants to get , sorting the mapped results (which are in (key, value) format) by key, evenly dividing the sorted map results amongst a specified number of participants for reducing (while maintaining the order determined by the sort function), and then writing each reducer's results to a separate file, with each such file ending in a number which identifies the proper sequence of results. All scheduling, sorting, and writing occurs on whichever server is running the Master code since we are allowed to assume that the Master server does not fail, so this allows us to ensure that the server won't crash while attempting those processes. Meanwhile, the Participant servers constantly accept commands from the Master and keep them ordered by PID in order to cleanly keep track of the different processes and easily stop any processes for a given PID if the user enters a "\verb|stop <pid>|" command.\\
 The user is able to run three commands on the Master server: "\verb|start <config file>|", "\verb|status <pid>|", and "\verb|stop <pid>|." These commands all work properly; "start" starts a MapReduce process with the provided config file for settings (and prints out the PID for that new process), "status" prints out the status of the process corresponding to the given PID, and "stop" cleanly stops the process corresponding to the given PID if possible. The user can also specify all of the major settings (including input file, output file, number of reducers, maximum partition size, every participant's host and port, etc.) for a MapReduce process by putting that information in a config file (matching the format shown in our examples) and entering that config file with the start command. \\
 
-UML Diagram of our MapReduce facility: \\
+\subsubsection{UML Diagram of our MapReduce facility}
+This diagram outlines the \ttt{Master}, \ttt{Participant} and message hierarchy. The \ttt{Master} and \ttt{Participant} are fairly straight forward with functionality to support map and reduce message passing and the map and reduce operations themselves. In particular the master also maintains a number of vectors to keep track of the process state (which participants have responded, are alive and are complete).
+
+Messages are a bit more complex. Basically they break down into three main components: commands to start operations, acknowledgment from participants for these commands and done messages for participants to signal completion to the master.
+
 \includegraphics[scale=.35]{MapReduce_UML.png}
 
-\newpage
-Flow Diagram for user input "\verb|start <config file>|": \\
+\subsubsection{UML Diagram of File IO}
+File IO is composed of a \ttt{FileServer} that runs on all machines to serve the various map reduce partitions and \ttt{Partition}s and their associate supporting objects. The \ttt{Partition} forms the backbone of this system as it contains all of the key-value pairs in map reduce as well as serving to hold the initial input data once parsed from the input file. \ttt{RemoteFile} provides the functionality to interface with the \ttt{FileServer} and load remote files to the local machine. The \ttt{PartitionWriter} writes values to a partition until that partition reaches max size and then starts writing to a new partition. The \ttt{KeyPartitionWriter} takes this process to the next level by also storing partitions by key. 
+
+\includegraphics[scale=.7]{MapReduceFileIO_UML.png}
+
+\subsubsection{UML Diagram of Map and Reduce Functions}
+These are the objects which handle the basic map and reduce operations. \ttt{MapFn} and \ttt{ReduceFn} are the interfaces utilized by the application developer. All intermediate data in the map reduce system is stored as \ttt{MRKeyVal} which are string-integer key-value pairs.
+
+\includegraphics[scale=.7]{MapReduceFN_UML.png}
+
+\subsubsection{Flow Diagram for user input `\ttt{start <config file>}'}
 \includegraphics[scale=.5]{MapReduce_start.png}
 
-Flow Diagram for user input "\verb|stop <pid>|": \\
+\subsubsection{Flow Diagram for user input `\ttt{stop <pid>}'}
 \includegraphics[scale=.7]{MapReduce_stop.png}
 
 \subsection{Requirements Not Met and Limitations}
@@ -128,6 +141,6 @@ Beyond that, our MapReduce facility essentially functions as it is intended to. 
 
 There is always room for improvement, and our MapReduce facility is no exception. We could potentially improve it by enabling some way for the user to specify what port to use for the FileServer instead of using one preset port (which is causing the issue mentioned in the last section). \\
 
-***TODO: DISCUSS OTHER IMPROVEMENTS, FINISH UML, ADD TO CAPABILITIES, AND REVISE***
+Additionally we could provide support for map reduce key values of arbitrary types instead of just strings and integers. String-integer key pairs are enough to demonstrate the functionality of map reduce but it would be nice to allow other object types.
 
 \end{document}
