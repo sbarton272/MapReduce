@@ -598,6 +598,7 @@ public class Master {
 		}
 		if (stopped){
 			System.out.println("Process "+pid+" has successfully been stopped.");
+			connections = connectionsByPid.get(pid);
 		}
 		else{
 			System.out.println("Process "+pid+": Process could not be cleanly stopped.");
