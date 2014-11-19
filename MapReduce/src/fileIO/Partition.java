@@ -44,7 +44,9 @@ public class Partition<T> extends RemoteFile {
 		this.filePath =  this.file.getPath();
 
 		// Make server directory if not present
-		File tmpDir = new File(this.file.getPath());
+		String absolutePath = this.file.getAbsolutePath();
+		String filePath = absolutePath.substring(0,absolutePath.lastIndexOf(File.separator));
+		File tmpDir = new File(filePath);
 		tmpDir.mkdir();
 
 		// Make partition a temporary file
