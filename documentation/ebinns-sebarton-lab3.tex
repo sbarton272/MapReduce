@@ -38,7 +38,7 @@ The following steps must be followed for a successful set-up.
 Run \ttt{python SETUP.py} in the \ttt{src} directory. This will compile all of the code.
 
 \item
-Start participants: Connect with all machines that you wish to run participants on. Run \ttt{java participant\\Participant} from the \ttt{src} directory. If this does not work you may need to use the non-default port. Try running with the optional port argument \ttt{java participant/Participant <port>}. If you see the message \ttt{File server ran into trouble} then the file server is unable to run on that machine so try running the participant on anther machine. An important note is that participants must run on different machines.
+Start participants: Connect with all machines that you wish to run participants on. Run \ttt{java participant\\Participant} from the \ttt{src} directory. If this does not work you may need to use the non-default port. Try running with the optional port argument \ttt{java participant/Participant <port>}. If you see the message \ttt{File server ran into trouble} then the file server is unable to run on that machine so try running the participant on anther machine or adjust the file server configuration file (see below note). An important note is that participants must run on different machines.
 
 \item
 Once you have some participants running, you will need to update the config file to point to these participants. Example config files can be found at \ttt{src/examples/ wordcount/wordcount.config} and \ttt{src/examples/wordoccurences/wordoccurences.config}. The key lines to modify, if you plan to run the examples, are \ttt{PARTICIPANT} and \ttt{NUM\_REDUCERS}. The \ttt{PARTICIPANT} values is \ttt{<hostname>:<port>}. When you started the participants there was a message to tell you which port it is running on.
@@ -51,13 +51,15 @@ The master is now running. You will have a number of possible commands to enter 
 
 \end{enumerate}
 
+In addition to the configuration files mentioned above there is a file server configuration file to tell master and participants where remote files should be served from as well as which port the file server is running on. If you run into file permission issues or unavailable ports this configuration file can be found at \ttt{fileIO/fileserver.config}. Make sure that the specified directory is not in AFS as that would cause conflicts as files move around.
+
 \subsection{Manage a Job}
 
 Now that you have the master and participants running you are ready to start a job. The master provides a command line interface to type three possible commands.
 
 \begin{itemize}
 \item
-\ttt{start <path\_to\_config\_file>} This will start a process and print results as the process goes. It will also print the process id (PID) for your use with other commands.
+\ttt{start <path\_to\_config\_file>} This will start a process and print results as the process goes. It will also print the process id (PID) for your use with other commands. (Ex  \ttt{start src/examples/wordcount/wordcount.config})
 
 \item
 \ttt{stop <pid>} Stops the specified process
@@ -76,6 +78,43 @@ We provide two interfaces to which the application developer must adhere. The fi
 
 The second interface is \ttt{ReduceFn} which requires a \ttt{reduce(String key, List<int> values) -> MRKeyVal(String key, int value)} method. This method takes a key and all of the values that had that key and returns a reduced result on the values in the form of a single key-value pair. If this method returns \ttt{null} then the result is ignored.
 
+\subsection{Config Files}
+
+Most of the configuration file parameters are self-explanatory:
+
+\begin{itemize}
+\item
+\ttt{JOB\_NAME=<string>}
+
+\item
+\ttt{INPUT\_FILE=<filePath>}
+
+\item
+\ttt{OUTPUT\_FILE=<filePath>}
+
+\item
+\ttt{MAP\_FN=<class name>} Specify the class name of your map function so that the application knows where to load your map function from.
+
+\item
+\ttt{MAP\_TIMEOUT\_SEC=<int>} This is the time in seconds for a single map operation on a participant to run. In other words this is the span of the map operation. You will need to adjust this value in relation to your planned number of participants.
+
+\item
+\ttt{REDUCE\_FN=<class name>} Specify the class name of your map function so that the application knows where to load your reduce function from.
+
+\item
+\ttt{REDUCE\_TIMEOUT\_SEC=<int>} This is the number of seconds that a single reduce operation should take. You will need to adjust this value in relation to the planned number of reducers.
+
+\item
+\ttt{PARITION\_SIZE=<int>} This specifies how many values a partition, the internal data file representation, should contain.
+
+\item
+\ttt{NUM\_REDUCERS=<int>} Specify the number of reducers. There will be one output file per reducer. Remember to make this number smaller than the number of participants.
+
+\item
+\ttt{PARTICIPANT=<hostName>:<port>} Specify the participant host name and communication port. There should be a new key value (\ttt{PARTICIPANT=}) pair per participant.
+
+\end{itemize}
+
 \subsection{Running Provided Examples}
 
 To run the provided examples follow the above steps and use the provided config files. Make sure to modify the participants and number of participants as necessary. Take a look at the provided code for examples of how to write the map and reduce functions.
@@ -83,14 +122,14 @@ To run the provided examples follow the above steps and use the provided config 
 \subsubsection{Word Count}
 Word counts takes a file of one word per line and returns the sorted words with their counts. 
 
-Using the above steps run with \ttt{src/examples/wordcount/wordcount.config}.
+Using the above steps run with \ttt{start src/examples/wordcount/wordcount.config}.
 
 The provided config file takes as input a file with all of the words in \textit{Macbeth} and outputs a word count. The only thing necessary to change in the config file is the participants and number of participants.
 
 \subsubsection{Word Occurrences}
 Word occurrences looks specifically for the word `macbeth' in the text of the play \textit{Macbeth} and returns a count of the occurrences.
 
-Using the above steps run with \ttt{src/examples/wordoccurences/wordoccurences.config}.
+Using the above steps run with \ttt{start src/examples/wordoccurences/wordoccurences.config}.
 
 The provided config file takes as input a file with all of the text of \textit{Macbeth} and outputs a word count for the word `macbeth'. The only thing necessary to change in the config file is the participants and number of participants.
 
@@ -133,14 +172,16 @@ These are the objects which handle the basic map and reduce operations. \ttt{Map
 
 \subsection{Requirements Not Met and Limitations}
 
-One fairly important limitation of our MapReduce facility as it currently stands is that due to the way in which we run the FileServer, our facility cannot be run on the same machine more than once at the same time. This does not mean we cannot run multiple MapReduce processes concurrently; within one Master instance (and one Participant instance on corresponding participants), running multiple processes concurrently works great. What we mean by this is that you cannot currently run the Master or Participant code in more than one separate instance on the same server without one of them refusing to connect to the FileServer and causing the Map process on the Participant to fail (since this is the first time in our code that the FileServer is used). For example, if one person logs into \verb|unix2.andrew.cmu.edu| and runs the Master code on it, then logs into \verb|unix6.andrew.cmu.edu| and runs the Participant code on it, then anyone else who simultaneously tries to run our facility on \verb|unix2.andrew.cmu.edu| and/or \verb|unix6.andrew.cmu.edu| will run into FileServer issues.\\
+One fairly important limitation of our MapReduce facility as it currently stands is that due to the way in which we run the FileServer. Two participant nodes cannot be run on the same machine as they would both use the same file server port.
+
+Another major limitation is that we rely on key value pairs of string and integer only. This can be easy extended to support generic types for key value pairs but as it stands currently the application developer is limited by this decision.
 
 Beyond that, our MapReduce facility essentially functions as it is intended to. All standard processes work as designed. In the event of participant failure or Mapper/Reducer failure, any participants that are not working properly are disconnected and removed from the working list of participants (which defines where map/reduce partitions can be sent) and any failed partitions are retried on functional participants. Furthermore, all other unexpected failures (such as network problems, missing files, etc.) are handled in such a way that the user receives relevant, concise information about the failure and the Master and Participant code continue to run as they should (in other words, errors are handled cleanly and do not accidentally cause the entire Master or Participant code to abort).
 
 \subsection{Improvements}
 
-There is always room for improvement, and our MapReduce facility is no exception. We could potentially improve it by enabling some way for the user to specify what port to use for the FileServer instead of using one preset port (which is causing the issue mentioned in the last section). \\
+There is always room for improvement, and our MapReduce facility is no exception. We could provide support for map reduce key values of arbitrary types instead of just strings and integers. String-integer key pairs are enough to demonstrate the functionality of map reduce but it would be nice to allow other object types.
 
-Additionally we could provide support for map reduce key values of arbitrary types instead of just strings and integers. String-integer key pairs are enough to demonstrate the functionality of map reduce but it would be nice to allow other object types.
+Additionally a full distributed file system would be helpful where files are backed up is a more distributed fashion on multiple machines instead of relying upon the master to always be the common source for files once a map reduce operation has completed. Our file system only distributes files during the map-reduce operation but does not create replicas of the output files.
 
 \end{document}
