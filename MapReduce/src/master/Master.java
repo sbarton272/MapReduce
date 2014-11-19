@@ -12,8 +12,6 @@ import java.util.Scanner;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-import participant.ResultPair;
-
 import mapreduce.MRKeyVal;
 import mapreduce.Mapper;
 import mapreduce.Reducer;
@@ -25,6 +23,7 @@ import messages.ReduceCommand;
 import messages.ReduceDone;
 import messages.StopCommand;
 import messages.StopDone;
+import participant.ResultPair;
 import sort.Sort;
 import fileIO.FileServer;
 import fileIO.Partition;
@@ -71,8 +70,13 @@ public class Master {
 		writtenToFile = new ArrayList<Integer>();
 
 		//start file server
-		FileServer fileServer = new FileServer();
-		fileServer.start();
+		FileServer fileServer;
+		try {
+			fileServer = new FileServer();
+			fileServer.start();
+		} catch (Exception e1) {
+			System.out.println("FileIO requires a config file");
+		}
 
 		// Useful startup messages
 		System.out.println("Welcome to MapReduce :)");
@@ -207,7 +211,7 @@ public class Master {
 			//Send map commands to participants
 			final List<Partition<String>> failedParts = new ArrayList<Partition<String>>();
 			final List<Connection> toRemove = new ArrayList<Connection>();
-			
+
 			for(int i = 0; i < connections.size(); i++){
 				final Connection connection = connections.get(i);
 				final List<Partition<String>> parts = partsByIdx.get(i);
@@ -448,14 +452,14 @@ public class Master {
 				}
 			}
 		}
-		
+
 		connectionsByPid.put(pid, connections);
 		numPartsByPid.put(pid, connections.size());
 		partsDoneByPid.put(pid, 0);
-		
+
 		return connections;
 	}
-	
+
 	public static synchronized ResultPair startMapOrReduce(String type, int pid, List<Connection> connections, List<Partition<String>> stringIn, int partSize, ConfigLoader loader, SortedMap<String,List<Partition<MRKeyVal>>> sortedParts){
 		if(type.equals("map")){
 			return new ResultPair(coordinateMap(pid, connections, stringIn, partSize), true);

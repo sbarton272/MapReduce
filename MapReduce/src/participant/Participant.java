@@ -40,8 +40,14 @@ public class Participant {
 
 		try{
 			//start file server
-			FileServer fileServer = new FileServer();
-			fileServer.start();
+			FileServer fileServer;
+			try {
+				fileServer = new FileServer();
+				fileServer.start();
+			} catch (Exception e1) {
+				System.out.println("FileIO requires a config file");
+			}
+
 
 			mapThreadsByPid = new HashMap<Integer, Thread>();
 			reduceThreadsByPid = new HashMap<Integer, Thread>();

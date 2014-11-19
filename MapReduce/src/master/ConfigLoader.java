@@ -26,6 +26,8 @@ public class ConfigLoader {
 	private final String STR_PARITION_SIZE = "PARITION_SIZE";
 	private final String STR_MASTER = "MASTER";
 	private final String STR_PARTICIPANT = "PARTICIPANT";
+	private final String STR_FILE_SERVER_DIR = "FILE_SERVER_DIR";
+	private final String STR_FILE_SERVER_PORT = "FILE_SERVER_PORT";
 	private final String STR_KEY_DELIM = "=";
 	private final String STR_DELIM = ":";
 
@@ -44,8 +46,10 @@ public class ConfigLoader {
 	private final List<ParticipantDetails> participants = new ArrayList<ParticipantDetails>();
 	private final HashMap<String,String> userConfig = new HashMap<String,String>();
 	private ParticipantDetails lastParticipantRecorded;
+	private String fileServerDir;
+	private int fileServerPort;
 
-	public ConfigLoader(String filePath) throws Exception {
+	public ConfigLoader(String filePath) throws IOException {
 		File configFile = new File(filePath);
 		BufferedReader reader = new BufferedReader(new FileReader(configFile));
 		String line;
@@ -60,7 +64,7 @@ public class ConfigLoader {
 		reader.close();
 	}
 
-	private void setKeyVal(String key, String val) throws Exception {
+	private void setKeyVal(String key, String val) throws IOException {
 		String[] hostPort;
 
 		switch(key) {
@@ -79,13 +83,21 @@ public class ConfigLoader {
 			outputFile = new File(val);
 			break;
 		case STR_MAP_FN:
-			mapFn = (MapFn) loadClass(val);
+			try {
+				mapFn = (MapFn) loadClass(val);
+			} catch (Exception e) {
+				throw(new IOException("Unable to load mapFn"));
+			}
 			break;
 		case STR_MAP_TIMEOUT_SEC:
 			mapTimeoutSec = Integer.parseInt(val);
 			break;
 		case STR_REDUCE_FN:
-			reduceFn = (ReduceFn) loadClass(val);
+			try {
+				reduceFn = (ReduceFn) loadClass(val);
+			} catch (Exception e) {
+				throw(new IOException("Unable to load reduceFn"));
+			}
 			break;
 		case STR_REDUCE_TIMEOUT_SEC:
 			reduceTimeoutSec = Integer.parseInt(val);
@@ -105,6 +117,12 @@ public class ConfigLoader {
 			hostPort = splitHostPort(val);
 			lastParticipantRecorded = new ParticipantDetails(hostPort[0], hostPort[1]);
 			participants.add(lastParticipantRecorded);
+			break;
+		case STR_FILE_SERVER_DIR:
+			fileServerDir = val;
+			break;
+		case STR_FILE_SERVER_PORT:
+			fileServerPort = Integer.parseInt(val);
 			break;
 		default:
 			// Store all unrecognized keys to a list of KV pairs
@@ -184,4 +202,11 @@ public class ConfigLoader {
 		return masterPort;
 	}
 
+	public String getFileServerDir() {
+		return fileServerDir;
+	}
+
+	public int getFileServerPort() {
+		return fileServerPort;
+	}
 }

@@ -18,11 +18,11 @@ import java.util.List;
 import java.util.UUID;
 
 import mapreduce.MRKeyVal;
+import master.ConfigLoader;
 
 public class Partition<T> extends RemoteFile {
 
 	private static final long serialVersionUID = 2184080295517094612L;
-	private static final String TMP_DIR = FileServer.DEFAULT_REMOTE_FILE_DIR;
 	private static final String EXT = ".partition";
 	private final int maxSize;
 	private List<T> contents;
@@ -38,18 +38,37 @@ public class Partition<T> extends RemoteFile {
 	}
 
 	public Partition(int maxSize, String hostName) throws IOException {
-
 		// Generate filename
-		super(TMP_DIR + File.separator + UUID.randomUUID() + EXT, hostName, 0);
+		super(getFileName(), hostName, getFilePort(), 0);
 		this.maxSize = maxSize;
 		this.filePath =  this.file.getPath();
 
-		// Make tmp directory if not present
-		File tmpDir = new File(TMP_DIR);
+		// Make server directory if not present
+		File tmpDir = new File(this.file.getPath());
 		tmpDir.mkdir();
 
 		// Make partition a temporary file
 		this.file.deleteOnExit();
+	}
+
+	//------------------------------------------
+
+	private static String getFileName() throws IOException {
+		ConfigLoader config = new ConfigLoader(FileServer.FILE_SERVER_CONFIG_FILE);
+		String serverDir = FileServer.DEFAULT_REMOTE_FILE_DIR;
+		if (config.getFileServerDir() != null) {
+			serverDir  = config.getFileServerDir();
+		}
+		return serverDir + File.separator + UUID.randomUUID() + EXT;
+	}
+
+	private static int getFilePort() throws IOException {
+		ConfigLoader config = new ConfigLoader(FileServer.FILE_SERVER_CONFIG_FILE);
+		int port = FileServer.DEFAULT_PORT;
+		if (config.getFileServerPort() != 0) {
+			port = config.getFileServerPort();
+		}
+		return port;
 	}
 
 	//------------------------------------------
@@ -65,12 +84,6 @@ public class Partition<T> extends RemoteFile {
 		// Create new file contents
 		contents = new ArrayList<T>();
 		size = 0;
-
-		// Create tmp directory if not present
-		if (Files.notExists(Paths.get(TMP_DIR))) {
-			File tmp = new File(TMP_DIR);
-			tmp.mkdir();
-		}
 
 	}
 

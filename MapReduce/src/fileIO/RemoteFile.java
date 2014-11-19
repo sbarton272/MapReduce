@@ -15,20 +15,22 @@ import messages.FileRequest;
 public class RemoteFile implements Serializable {
 
 	private static final long serialVersionUID = -3103109845670699168L;
-	protected final File file;
+	protected File file;
 	private int fileByteSize;
 	private String hostName;
+	private final int hostPort;
 
-	public RemoteFile(String filePath, String hostName, int fileByteSize) {
+	public RemoteFile(String filePath, String hostName, int hostPort, int fileByteSize) {
 		this.file = new File(filePath);
 		this.hostName = hostName;
+		this.hostPort = hostPort;
 		this.fileByteSize = fileByteSize;
 	}
 
 	public void load() throws IOException {
 
 		// Open socket to host machine
-		Socket soc = new Socket(hostName, FileServer.PORT);
+		Socket soc = new Socket(hostName, hostPort);
 
 		// Send request for file
 		sendRequest(soc);

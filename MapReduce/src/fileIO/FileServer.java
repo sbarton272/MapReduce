@@ -9,20 +9,38 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+import master.ConfigLoader;
 import messages.FileRequest;
 
 public class FileServer extends Thread {
 
-	public static final int PORT = 5232;
+	public static final int DEFAULT_PORT = 5232;
 	public static final String DEFAULT_REMOTE_FILE_DIR = "/tmp";
+	public static final String FILE_SERVER_CONFIG_FILE = "fileIO/fileserver.config";
+	private final int port;
 	private final String remoteFileDir;
 
 	public FileServer(String remoteFileDir) {
 		this.remoteFileDir = remoteFileDir;
+		port = DEFAULT_PORT;
+		initDir();
 	}
 
-	public FileServer() {
-		this(DEFAULT_REMOTE_FILE_DIR);
+	public FileServer() throws Exception {
+		ConfigLoader config = new ConfigLoader(FILE_SERVER_CONFIG_FILE);
+		if (config.getFileServerPort() != 0) {
+			port = config.getFileServerPort();
+		} else {
+			port = DEFAULT_PORT;
+		}
+
+		if (config.getFileServerDir() != null) {
+			remoteFileDir = config.getFileServerDir();
+		} else {
+			remoteFileDir = DEFAULT_REMOTE_FILE_DIR;
+		}
+
+		initDir();
 	}
 
 	@Override
@@ -30,9 +48,7 @@ public class FileServer extends Thread {
 
 		ServerSocket serverSoc = null;
 		try {
-			serverSoc = new ServerSocket(PORT);
-
-			//System.out.println("File server online");
+			serverSoc = new ServerSocket(port);
 
 			// Run indefinitely
 			while(true){
@@ -106,6 +122,12 @@ public class FileServer extends Thread {
 			}
 		}
 
+	}
+
+	private void initDir() {
+		// Make directory if not present
+		File tmpDir = new File(remoteFileDir);
+		tmpDir.mkdir();
 	}
 
 }

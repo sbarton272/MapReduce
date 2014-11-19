@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
+import fileIO.FileServer;
 import fileIO.Partition;
 import fileIO.RemoteFile;
 import fileIO.RemoteFileException;
@@ -29,14 +30,14 @@ public class testRemoteFile {
 		newF.deleteOnExit();
 
 		// Test with random file
-		RemoteFile file = new RemoteFile("/tmp/testRemote.txt", "localhost", (int)new File("resources/testRemote.txt").length());
+		RemoteFile file = new RemoteFile("/tmp/testRemote.txt", "localhost", FileServer.DEFAULT_PORT, (int)new File("resources/testRemote.txt").length());
 		file.load();
 		file.getFile().deleteOnExit();
 		System.out.println(file.getFile().exists());
 		System.out.println(file.getFile().length());
 
 		// Test with empty file
-		file = new RemoteFile("/tmp/testRemoteEmpty.txt", "localhost", (int)new File("resources/testRemoteEmpty.txt").length());
+		file = new RemoteFile("/tmp/testRemoteEmpty.txt", "localhost", FileServer.DEFAULT_PORT, (int)new File("resources/testRemoteEmpty.txt").length());
 		try {
 			file.load();
 		} catch (RemoteFileException e) {
@@ -44,7 +45,7 @@ public class testRemoteFile {
 		}
 
 		// Test with missing
-		file = new RemoteFile("/tmp/testRemoteMissing.txt", "localhost", 42);
+		file = new RemoteFile("/tmp/testRemoteMissing.txt", "localhost", FileServer.DEFAULT_PORT, 42);
 		try {
 			file.load();
 		} catch (RemoteFileException e) {
